@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Autenticação - Supabase</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            border: 2px solid #000;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #333;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 2px solid #000;
+            width: 300px;
+        }
+        .log {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .error {
+            color: #d32f2f;
+        }
+        .success {
+            color: #388e3c;
+        }
+        .info {
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de Autenticação - Supabase</h1>
+
+    <div class="container">
+        <h2>1. Criar Conta</h2>
+        <div>
+            <input type="text" id="signupName" placeholder="Nome completo" value="Teste User">
+            <input type="email" id="signupEmail" placeholder="Email" value="teste@example.com">
+            <input type="password" id="signupPassword" placeholder="Senha" value="senha123456">
+        </div>
+        <button onclick="testSignUp()">Criar Conta</button>
+    </div>
+
+    <div class="container">
+        <h2>2. Fazer Login</h2>
+        <div>
+            <input type="email" id="loginEmail" placeholder="Email" value="teste@example.com">
+            <input type="password" id="loginPassword" placeholder="Senha" value="senha123456">
+        </div>
+        <button onclick="testSignIn()">Login</button>
+    </div>
+
+    <div class="container">
+        <h2>3. Verificar Sessão</h2>
+        <button onclick="checkSession()">Verificar Sessão Atual</button>
+        <button onclick="signOut()">Logout</button>
+    </div>
+
+    <div class="container">
+        <h2>Log de Ações</h2>
+        <button onclick="clearLog()">Limpar Log</button>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+        const SUPABASE_URL = 'https://oejjpnjrnzqlrwbmnjfi.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lampwbmpybnpxbHJ3Ym1uamZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2NjcsImV4cCI6MjA4MzE5MDY2N30.3KBu4rbWac6drdbjiUlne5S1tfil4nELmuxxpfbFeX4'
+
+        window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log')
+            const timestamp = new Date().toLocaleTimeString()
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`
+            logDiv.scrollTop = logDiv.scrollHeight
+            console.log(`[${type.toUpperCase()}]`, message)
+        }
+
+        window.testSignUp = async function() {
+            const name = document.getElementById('signupName').value
+            const email = document.getElementById('signupEmail').value
+            const password = document.getElementById('signupPassword').value
+
+            log(`Tentando criar conta para: ${email}`, 'info')
+
+            try {
+                const { data, error } = await window.supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            full_name: name
+                        }
+                    }
+                })
+
+                if (error) {
+                    log(`ERRO ao criar conta: ${error.message}`, 'error')
+                    log(`Detalhes: ${JSON.stringify(error)}`, 'error')
+                } else {
+                    log('Conta criada com sucesso!', 'success')
+                    log(`Usuário ID: ${data.user?.id}`, 'success')
+                    log(`Session: ${data.session ? 'SIM' : 'NÃO (confirmação de email pode estar habilitada)'}`, data.session ? 'success' : 'error')
+
+                    if (!data.session) {
+                        log('⚠️ ATENÇÃO: Conta criada mas sem sessão. Email confirmation está HABILITADO no Supabase.', 'error')
+                        log('⚠️ Para corrigir: Vá em Authentication > Providers > Email > Desmarque "Enable email confirmations"', 'error')
+                    }
+                }
+            } catch (err) {
+                log(`EXCEÇÃO: ${err.message}`, 'error')
+            }
+        }
+
+        window.testSignIn = async function() {
+            const email = document.getElementById('loginEmail').value
+            const password = document.getElementById('loginPassword').value
+
+            log(`Tentando fazer login com: ${email}`, 'info')
+
+            try {
+                const { data, error } = await window.supabase.auth.signInWithPassword({
+                    email,
+                    password
+                })
+
+                if (error) {
+                    log(`ERRO ao fazer login: ${error.message}`, 'error')
+                    log(`Detalhes: ${JSON.stringify(error)}`, 'error')
+
+                    if (error.message.includes('Invalid login credentials')) {
+                        log('⚠️ Possíveis causas:', 'error')
+                        log('  1. Email ou senha incorretos', 'error')
+                        log('  2. Email não confirmado (se confirmation estiver habilitado)', 'error')
+                        log('  3. Usuário não existe', 'error')
+                    }
+                } else {
+                    log('Login realizado com sucesso!', 'success')
+                    log(`Usuário: ${data.user?.email}`, 'success')
+                    log(`Session ID: ${data.session?.access_token?.substring(0, 20)}...`, 'success')
+                }
+            } catch (err) {
+                log(`EXCEÇÃO: ${err.message}`, 'error')
+            }
+        }
+
+        window.checkSession = async function() {
+            log('Verificando sessão atual...', 'info')
+
+            try {
+                const { data, error } = await window.supabase.auth.getSession()
+
+                if (error) {
+                    log(`ERRO ao verificar sessão: ${error.message}`, 'error')
+                } else if (data.session) {
+                    log('Usuário está LOGADO', 'success')
+                    log(`Email: ${data.session.user.email}`, 'success')
+                    log(`Nome: ${data.session.user.user_metadata.full_name || 'N/A'}`, 'info')
+                } else {
+                    log('Nenhuma sessão ativa (usuário NÃO está logado)', 'error')
+                }
+            } catch (err) {
+                log(`EXCEÇÃO: ${err.message}`, 'error')
+            }
+        }
+
+        window.signOut = async function() {
+            log('Fazendo logout...', 'info')
+
+            try {
+                const { error } = await window.supabase.auth.signOut()
+
+                if (error) {
+                    log(`ERRO ao fazer logout: ${error.message}`, 'error')
+                } else {
+                    log('Logout realizado com sucesso!', 'success')
+                }
+            } catch (err) {
+                log(`EXCEÇÃO: ${err.message}`, 'error')
+            }
+        }
+
+        window.clearLog = function() {
+            document.getElementById('log').innerHTML = ''
+        }
+
+        // Check session on load
+        window.addEventListener('load', () => {
+            log('Página de teste carregada', 'info')
+            log('Supabase URL: ' + SUPABASE_URL, 'info')
+            checkSession()
+        })
+    </script>
+</body>
+</html>

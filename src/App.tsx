@@ -9,6 +9,8 @@ import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
 import { ProjectDashboard } from './components/ProjectDashboard';
 import { RoadmapGantt } from './components/RoadmapGantt';
+import { KanbanPage } from './components/KanbanPage';
+import { CeremoniesPage } from './components/CeremoniesPage';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './lib/supabase';
@@ -22,7 +24,9 @@ type ViewType =
   | 'old-admin-dashboard'
   | 'auth'
   | 'dashboard'
-  | 'roadmap';
+  | 'roadmap'
+  | 'kanban'
+  | 'ceremonies';
 
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
@@ -74,7 +78,22 @@ function AppContent() {
         }
       } else if (window.location.hash === '#app') {
         if (user) {
-          setView('dashboard');
+          const checkDefaultProject = async () => {
+            const { data: preferences } = await supabase
+              .from('user_preferences')
+              .select('default_project_id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (preferences?.default_project_id) {
+              setSelectedProjectId(preferences.default_project_id);
+              setView('roadmap');
+              window.location.hash = `#roadmap/${preferences.default_project_id}`;
+            } else {
+              setView('dashboard');
+            }
+          };
+          checkDefaultProject();
         } else {
           setView('auth');
         }
@@ -83,6 +102,22 @@ function AppContent() {
         if (user) {
           setSelectedProjectId(projectId);
           setView('roadmap');
+        } else {
+          setView('auth');
+        }
+      } else if (window.location.hash.startsWith('#kanban/')) {
+        const projectId = window.location.hash.replace('#kanban/', '');
+        if (user) {
+          setSelectedProjectId(projectId);
+          setView('kanban');
+        } else {
+          setView('auth');
+        }
+      } else if (window.location.hash.startsWith('#ceremonies/')) {
+        const projectId = window.location.hash.replace('#ceremonies/', '');
+        if (user) {
+          setSelectedProjectId(projectId);
+          setView('ceremonies');
         } else {
           setView('auth');
         }
@@ -135,6 +170,24 @@ function AppContent() {
     setView('roadmap');
   };
 
+  const handleNavigateToKanban = (projectId: string) => {
+    window.location.hash = `#kanban/${projectId}`;
+    setSelectedProjectId(projectId);
+    setView('kanban');
+  };
+
+  const handleNavigateToCeremonies = (projectId: string) => {
+    window.location.hash = `#ceremonies/${projectId}`;
+    setSelectedProjectId(projectId);
+    setView('ceremonies');
+  };
+
+  const handleBackToRoadmap = (projectId: string) => {
+    window.location.hash = `#roadmap/${projectId}`;
+    setSelectedProjectId(projectId);
+    setView('roadmap');
+  };
+
   if (authLoading || isAuthChecking) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -165,7 +218,30 @@ function AppContent() {
 
   if (view === 'roadmap' && selectedProjectId && user) {
     return (
-      <RoadmapGantt projectId={selectedProjectId} onBack={navigateToDashboard} />
+      <RoadmapGantt
+        projectId={selectedProjectId}
+        onBack={navigateToDashboard}
+        onNavigateToKanban={() => handleNavigateToKanban(selectedProjectId)}
+        onNavigateToCeremonies={() => handleNavigateToCeremonies(selectedProjectId)}
+      />
+    );
+  }
+
+  if (view === 'kanban' && selectedProjectId && user) {
+    return (
+      <KanbanPage
+        projectId={selectedProjectId}
+        onBack={() => handleBackToRoadmap(selectedProjectId)}
+      />
+    );
+  }
+
+  if (view === 'ceremonies' && selectedProjectId && user) {
+    return (
+      <CeremoniesPage
+        projectId={selectedProjectId}
+        onBack={() => handleBackToRoadmap(selectedProjectId)}
+      />
     );
   }
 

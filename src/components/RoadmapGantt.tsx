@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, KanbanSquare, GitBranch, Settings, PanelLeftClose, PanelLeftOpen, User, X } from 'lucide-react';
+import { ArrowLeft, Plus, KanbanSquare, GitBranch, Settings, PanelLeftClose, PanelLeftOpen, User, X, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Project } from '../types/roadmap';
 import {
@@ -8,7 +8,6 @@ import {
   parseDate,
 } from '../utils/businessDays';
 import { Logo } from './Logo';
-import { KanbanBoard } from './KanbanBoard';
 import { DesignStoryWithPhases, ZoomLevel, SprintDuration, DEFAULT_PHASE_TEMPLATES } from '../types/designStories';
 import { StoriesTimeline } from './StoriesTimeline';
 import { StoryRow } from './StoryRow';
@@ -22,18 +21,17 @@ import { formatDate } from '../utils/businessDays';
 interface RoadmapGanttProps {
   projectId: string;
   onBack: () => void;
+  onNavigateToKanban: () => void;
+  onNavigateToCeremonies: () => void;
 }
 
 const BASE_CELL_WIDTH = 60;
 const NUMBER_OF_WEEKS = 12;
 
-type ViewMode = 'roadmap' | 'kanban';
-
-export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
+export const RoadmapGantt = ({ projectId, onBack, onNavigateToKanban, onNavigateToCeremonies }: RoadmapGanttProps) => {
   const [project, setProject] = useState<Project | null>(null);
   const [stories, setStories] = useState<DesignStoryWithPhases[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('roadmap');
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [selectedStory, setSelectedStory] = useState<DesignStoryWithPhases | null>(null);
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>(100);
@@ -448,121 +446,112 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={onBack}
-                className="p-2 hover:bg-gray-100 rounded transition-colors"
-                title="Voltar"
+                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded transition-colors text-sm"
+                title="Ver todos os projetos"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
+                Meus Projetos
               </button>
+              <div className="w-px h-6 bg-gray-300" />
               <Logo showText={false} variant="dark" />
               <h1 className="text-lg font-bold">{project.name}</h1>
             </div>
 
             <div className="flex items-center gap-2">
-              {viewMode === 'roadmap' && (
-                <>
-                  <button
-                    onClick={() => setShowLeftColumn(!showLeftColumn)}
-                    className="p-2 hover:bg-gray-100 rounded transition-colors"
-                    title={showLeftColumn ? "Ocultar coluna lateral" : "Mostrar coluna lateral"}
-                  >
-                    {showLeftColumn ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
-                  </button>
-                  <button
-                    onClick={() => setShowSettingsModal(true)}
-                    className="p-2 hover:bg-gray-100 rounded transition-colors"
-                    title="Configurações"
-                  >
-                    <Settings className="w-5 h-5" />
-                  </button>
+              <button
+                onClick={() => setShowLeftColumn(!showLeftColumn)}
+                className="p-2 hover:bg-gray-100 rounded transition-colors"
+                title={showLeftColumn ? "Ocultar coluna lateral" : "Mostrar coluna lateral"}
+              >
+                {showLeftColumn ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="p-2 hover:bg-gray-100 rounded transition-colors"
+                title="Configurações"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
 
-                  {designers.length > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded border border-gray-200">
-                      <span className="text-xs font-medium text-gray-600">Designers:</span>
-                      <div className="flex items-center gap-1">
-                        {designers.map((designer) => (
-                          <button
-                            key={designer.id}
-                            onClick={() => setSelectedDesignerId(
-                              selectedDesignerId === designer.id ? null : designer.id
-                            )}
-                            className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-all ${
-                              selectedDesignerId === designer.id
-                                ? 'ring-2 ring-blue-500 scale-110'
-                                : 'hover:scale-105 hover:ring-2 hover:ring-gray-300'
-                            }`}
-                            title={designer.name}
-                          >
-                            {designer.avatar_url ? (
-                              <img
-                                src={designer.avatar_url}
-                                alt={designer.name}
-                                className="w-full h-full rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full rounded-full bg-gray-300 flex items-center justify-center">
-                                <User className="w-4 h-4 text-gray-600" />
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                        {selectedDesignerId && (
-                          <button
-                            onClick={() => setSelectedDesignerId(null)}
-                            className="ml-1 p-1 hover:bg-gray-200 rounded transition-colors"
-                            title="Mostrar todos"
-                          >
-                            <X className="w-3 h-3 text-gray-600" />
-                          </button>
+              {designers.length > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded border border-gray-200">
+                  <span className="text-xs font-medium text-gray-600">Designers:</span>
+                  <div className="flex items-center gap-1">
+                    {designers.map((designer) => (
+                      <button
+                        key={designer.id}
+                        onClick={() => setSelectedDesignerId(
+                          selectedDesignerId === designer.id ? null : designer.id
                         )}
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleCreateStory}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nova História
-                  </button>
-                </>
+                        className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-all ${
+                          selectedDesignerId === designer.id
+                            ? 'ring-2 ring-blue-500 scale-110'
+                            : 'hover:scale-105 hover:ring-2 hover:ring-gray-300'
+                        }`}
+                        title={designer.name}
+                      >
+                        {designer.avatar_url ? (
+                          <img
+                            src={designer.avatar_url}
+                            alt={designer.name}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-gray-300 flex items-center justify-center">
+                            <User className="w-4 h-4 text-gray-600" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                    {selectedDesignerId && (
+                      <button
+                        onClick={() => setSelectedDesignerId(null)}
+                        className="ml-1 p-1 hover:bg-gray-200 rounded transition-colors"
+                        title="Mostrar todos"
+                      >
+                        <X className="w-3 h-3 text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
+
+              <button
+                onClick={handleCreateStory}
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Nova História
+              </button>
             </div>
           </div>
 
           <div className="flex">
             <button
-              onClick={() => setViewMode('roadmap')}
-              className={`flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm ${
-                viewMode === 'roadmap'
-                  ? 'bg-white border-b-2 border-black -mb-[2px] relative z-10'
-                  : 'bg-gray-50 hover:bg-gray-100'
-              }`}
+              className="flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm bg-white border-b-2 border-black -mb-[2px] relative z-10"
             >
               <GitBranch className="w-4 h-4" />
               Roadmap
             </button>
             <button
-              onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm ${
-                viewMode === 'kanban'
-                  ? 'bg-white border-b-2 border-black -mb-[2px] relative z-10'
-                  : 'bg-gray-50 hover:bg-gray-100'
-              }`}
+              onClick={onNavigateToKanban}
+              className="flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm bg-gray-50 hover:bg-gray-100"
             >
               <KanbanSquare className="w-4 h-4" />
               Kanban
+            </button>
+            <button
+              onClick={onNavigateToCeremonies}
+              className="flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm bg-gray-50 hover:bg-gray-100"
+            >
+              <Calendar className="w-4 h-4" />
+              Cerimônias
             </button>
           </div>
         </div>
       </header>
 
-      {viewMode === 'kanban' ? (
-        <div className="p-6">
-          <KanbanBoard projectId={projectId} />
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
           <div className="inline-block min-w-full">
             <div className="flex">
               {showLeftColumn && (
@@ -638,14 +627,11 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
             )}
           </div>
         </div>
-      )}
 
-      {viewMode === 'roadmap' && (
-        <FloatingZoomControls
-          zoomLevel={zoomLevel}
-          onZoomChange={handleZoomChange}
-        />
-      )}
+      <FloatingZoomControls
+        zoomLevel={zoomLevel}
+        onZoomChange={handleZoomChange}
+      />
 
       {showStoryModal && (
         <StoryModal

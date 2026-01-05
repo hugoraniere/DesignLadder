@@ -107,6 +107,66 @@ export const ProjectDashboard = ({ onSelectProject }: ProjectDashboardProps) => 
 
       if (phasesError) throw phasesError;
 
+      const defaultCeremonies = [
+        {
+          name: 'Design Critique',
+          frequency: 'weekly',
+          duration_minutes: 30,
+          objective: 'Feedback e padrões',
+          agenda: 'Apresentação, feedback, boas práticas',
+          participants: ['Designers', 'Devs', 'PMs'],
+          position: 1
+        },
+        {
+          name: 'Design Hands',
+          frequency: 'weekly',
+          duration_minutes: 60,
+          objective: 'Ajuda prática',
+          agenda: 'Contexto, solução, justificativa, QA',
+          participants: ['Designers'],
+          position: 2
+        },
+        {
+          name: 'Checkpoint de Design',
+          frequency: 'weekly',
+          duration_minutes: 15,
+          objective: 'Alinhar semana',
+          agenda: 'Feitos e próximos passos',
+          participants: ['Designers'],
+          position: 3
+        }
+      ];
+
+      const { error: ceremoniesError } = await supabase
+        .from('ceremonies')
+        .insert(
+          defaultCeremonies.map((ceremony) => ({
+            project_id: project.id,
+            ...ceremony
+          }))
+        );
+
+      if (ceremoniesError) {
+        console.warn('[ProjectDashboard] Erro ao criar cerimônias:', ceremoniesError);
+      }
+
+      const { error: preferencesError } = await supabase
+        .from('user_preferences')
+        .upsert(
+          {
+            user_id: user.id,
+            default_project_id: project.id,
+            updated_at: new Date().toISOString()
+          },
+          {
+            onConflict: 'user_id'
+          }
+        );
+
+      if (preferencesError) {
+        console.warn('[ProjectDashboard] Erro ao definir projeto padrão:', preferencesError);
+      }
+
       setShowNewProjectModal(false);
       setNewProjectName('');
       setNewProjectDescription('');

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, KanbanSquare, GitBranch, Settings } from 'lucide-react';
+import { ArrowLeft, Plus, KanbanSquare, GitBranch, Settings, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Project } from '../types/roadmap';
 import {
@@ -46,6 +46,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   const [taskDraftStartDate, setTaskDraftStartDate] = useState<Date | null>(null);
   const [taskDraftEndDate, setTaskDraftEndDate] = useState<Date | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showLeftColumn, setShowLeftColumn] = useState(true);
 
   useEffect(() => {
     loadProjectData();
@@ -411,6 +412,13 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
               {viewMode === 'roadmap' && (
                 <>
                   <button
+                    onClick={() => setShowLeftColumn(!showLeftColumn)}
+                    className="p-2 hover:bg-gray-100 rounded transition-colors"
+                    title={showLeftColumn ? "Ocultar coluna lateral" : "Mostrar coluna lateral"}
+                  >
+                    {showLeftColumn ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+                  </button>
+                  <button
                     onClick={() => setShowSettingsModal(true)}
                     className="p-2 hover:bg-gray-100 rounded transition-colors"
                     title="Configurações"
@@ -464,14 +472,16 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full">
             <div className="flex">
-              <div className="w-64 flex-shrink-0 border-r-2 border-black bg-gray-50 sticky left-0 z-30">
-                <div className="px-4 py-3 border-b border-gray-300 bg-gray-100" style={{ height: '50px' }}>
-                  <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Sprints</h3>
+              {showLeftColumn && (
+                <div className="w-64 flex-shrink-0 border-r-2 border-black bg-gray-50 sticky left-0 z-30">
+                  <div className="px-4 py-3 border-b border-gray-300 bg-gray-100" style={{ height: '50px' }}>
+                    <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Sprints</h3>
+                  </div>
+                  <div className="px-4 py-3 border-b-2 border-black bg-gray-50" style={{ height: '45px' }}>
+                    <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Histórias</h3>
+                  </div>
                 </div>
-                <div className="px-4 py-3 border-b-2 border-black bg-gray-50" style={{ height: '45px' }}>
-                  <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Histórias</h3>
-                </div>
-              </div>
+              )}
 
               <div className="flex-1">
                 <StoriesTimeline
@@ -488,21 +498,46 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
                 <p className="text-sm">Clique em "Nova História" para começar</p>
               </div>
             ) : (
-              stories.map(story => (
-                <StoryRow
-                  key={story.id}
-                  story={story}
-                  cellWidth={cellWidth}
-                  businessDays={businessDays}
-                  onToggleCollapse={handleToggleCollapse}
-                  onEditStory={handleEditStory}
-                  onDeleteStory={handleDeleteStory}
-                  onResizePhase={handleResizePhase}
-                  onCreateTask={handleCreateTask}
-                  onTaskClick={handleTaskClick}
-                  refreshTrigger={refreshTrigger}
-                />
-              ))
+              <>
+                {stories.map(story => (
+                  <StoryRow
+                    key={story.id}
+                    story={story}
+                    cellWidth={cellWidth}
+                    businessDays={businessDays}
+                    onToggleCollapse={handleToggleCollapse}
+                    onEditStory={handleEditStory}
+                    onDeleteStory={handleDeleteStory}
+                    onResizePhase={handleResizePhase}
+                    onCreateTask={handleCreateTask}
+                    onTaskClick={handleTaskClick}
+                    refreshTrigger={refreshTrigger}
+                    showLeftColumn={showLeftColumn}
+                  />
+                ))}
+                <div
+                  className="flex border-b border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer group"
+                  onClick={handleCreateStory}
+                  style={{ minHeight: '60px' }}
+                >
+                  {showLeftColumn && (
+                    <div className="w-64 flex-shrink-0 border-r-2 border-gray-200 px-3 py-2 bg-white sticky left-0 z-20">
+                      <div className="flex items-center gap-2 text-gray-400 group-hover:text-gray-600 transition-colors">
+                        <Plus className="w-4 h-4" />
+                        <span className="text-sm font-medium">Nova História</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex-1 relative flex items-center justify-center">
+                    {!showLeftColumn && (
+                      <div className="flex items-center gap-2 text-gray-400 group-hover:text-gray-600 transition-colors">
+                        <Plus className="w-4 h-4" />
+                        <span className="text-sm font-medium">Nova História</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>

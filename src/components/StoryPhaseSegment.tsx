@@ -86,24 +86,18 @@ export const StoryPhaseSegment = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const phaseColor = phase.color || storyColor;
-  const lighterColor = `${phaseColor}15`;
-  const borderColor = `${phaseColor}60`;
-
   return (
     <>
       <div
-        className="absolute top-0 h-[24px] border transition-all"
+        className="absolute top-0 h-[24px] bg-black border border-gray-700 transition-all"
         style={{
           left: `${left}px`,
           width: `${width}px`,
-          backgroundColor: lighterColor,
-          borderColor: borderColor,
           zIndex: isDragging ? 30 : 1
         }}
       >
         <div className="absolute inset-0 flex items-center justify-center px-2">
-          <span className="text-[10px] font-semibold truncate" style={{ color: phaseColor }}>
+          <span className="text-[10px] font-semibold truncate text-white">
             {phase.name}
           </span>
         </div>

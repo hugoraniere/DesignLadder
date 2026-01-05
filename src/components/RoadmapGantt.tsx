@@ -1,46 +1,39 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, Settings, KanbanSquare, GitBranch } from 'lucide-react';
+import { ArrowLeft, Plus, KanbanSquare, GitBranch } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Project, Phase, Task } from '../types/roadmap';
+import { Project } from '../types/roadmap';
 import {
   generateBusinessDaysRange,
   groupBusinessDaysByWeek,
-  formatDate,
   parseDate,
-  adjustToBusinessDay,
-  isSameDay,
 } from '../utils/businessDays';
-import { GanttTimeline } from './GanttTimeline';
-import { GanttRow } from './GanttRow';
-import { TaskModal } from './TaskModal';
 import { Logo } from './Logo';
 import { KanbanBoard } from './KanbanBoard';
+import { DesignStoryWithPhases, ZoomLevel, SprintDuration, DEFAULT_PHASE_TEMPLATES } from '../types/designStories';
+import { StoriesTimeline } from './StoriesTimeline';
+import { StoryRow } from './StoryRow';
+import { StoryModal, StoryFormData } from './StoryModal';
+import { RoadmapControls } from './RoadmapControls';
 
 interface RoadmapGanttProps {
   projectId: string;
   onBack: () => void;
 }
 
-const CELL_WIDTH = 60;
+const BASE_CELL_WIDTH = 60;
 const NUMBER_OF_WEEKS = 12;
 
 type ViewMode = 'roadmap' | 'kanban';
 
 export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   const [project, setProject] = useState<Project | null>(null);
-  const [phases, setPhases] = useState<Phase[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [stories, setStories] = useState<DesignStoryWithPhases[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [newTaskData, setNewTaskData] = useState<{
-    phaseId: string;
-    startDate: Date;
-    endDate: Date;
-  } | null>(null);
-  const [showHandoffModal, setShowHandoffModal] = useState(false);
-  const [handoffDate, setHandoffDate] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('roadmap');
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [selectedStory, setSelectedStory] = useState<DesignStoryWithPhases | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>(100);
+  const [sprintDuration, setSprintDuration] = useState<SprintDuration>(2);
 
   useEffect(() => {
     loadProjectData();
@@ -48,6 +41,8 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
 
   const loadProjectData = async () => {
     try {
+      setLoading(true);
+
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select('*')
@@ -57,146 +52,225 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
       if (projectError) throw projectError;
 
       setProject(projectData);
-      setHandoffDate(projectData.handoff_date || '');
+      setZoomLevel((projectData.zoom_level as ZoomLevel) || 100);
+      setSprintDuration((projectData.sprint_duration_weeks as SprintDuration) || 2);
 
-      const { data: phasesData, error: phasesError } = await supabase
-        .from('phases')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('order');
-
-      if (phasesError) throw phasesError;
-
-      setPhases(phasesData || []);
-
-      const phaseIds = phasesData?.map((p) => p.id) || [];
-
-      if (phaseIds.length > 0) {
-        const { data: tasksData, error: tasksError } = await supabase
-          .from('tasks')
-          .select('*')
-          .in('phase_id', phaseIds)
-          .order('start_date');
-
-        if (tasksError) throw tasksError;
-
-        setTasks(tasksData || []);
-      }
+      await loadStories();
     } catch (error) {
-      console.error('Error loading project:', error);
+      console.error('[RoadmapGantt] Error loading project:', error);
       alert('Erro ao carregar projeto');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateTask = (phaseId: string, startDate: Date, endDate: Date) => {
-    setSelectedTask(null);
-    setNewTaskData({ phaseId, startDate, endDate });
-    setShowTaskModal(true);
-  };
-
-  const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
-    setNewTaskData(null);
-    setShowTaskModal(true);
-  };
-
-  const handleSaveTask = async (taskData: Partial<Task>) => {
+  const loadStories = async () => {
     try {
-      if (selectedTask) {
-        const { error } = await supabase
-          .from('tasks')
-          .update(taskData)
-          .eq('id', selectedTask.id);
+      const { data: storiesData, error: storiesError } = await supabase
+        .from('design_stories')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('position');
 
-        if (error) throw error;
+      if (storiesError) throw storiesError;
 
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === selectedTask.id ? { ...t, ...taskData } as Task : t
-          )
-        );
+      if (!storiesData || storiesData.length === 0) {
+        setStories([]);
+        return;
+      }
+
+      const { data: phasesData, error: phasesError } = await supabase
+        .from('story_phases')
+        .select('*')
+        .in('story_id', storiesData.map(s => s.id))
+        .order('order');
+
+      if (phasesError) throw phasesError;
+
+      const storiesWithPhases: DesignStoryWithPhases[] = storiesData.map(story => ({
+        ...story,
+        phases: phasesData?.filter(phase => phase.story_id === story.id) || []
+      }));
+
+      setStories(storiesWithPhases);
+    } catch (error) {
+      console.error('[RoadmapGantt] Error loading stories:', error);
+    }
+  };
+
+  const handleCreateStory = () => {
+    setSelectedStory(null);
+    setShowStoryModal(true);
+  };
+
+  const handleEditStory = (story: DesignStoryWithPhases) => {
+    setSelectedStory(story);
+    setShowStoryModal(true);
+  };
+
+  const handleSaveStory = async (data: StoryFormData) => {
+    try {
+      if (selectedStory) {
+        const { error: storyError } = await supabase
+          .from('design_stories')
+          .update({
+            name: data.name,
+            color: data.color,
+            start_date: data.start_date,
+            handoff_date: data.handoff_date
+          })
+          .eq('id', selectedStory.id);
+
+        if (storyError) throw storyError;
+
+        const { error: deleteError } = await supabase
+          .from('story_phases')
+          .delete()
+          .eq('story_id', selectedStory.id);
+
+        if (deleteError) throw deleteError;
+
+        const phases = data.phases.map((phase, index) => ({
+          story_id: selectedStory.id,
+          name: phase.name,
+          duration_days: phase.duration_days,
+          order: index + 1,
+          color: phase.color || null
+        }));
+
+        const { error: phasesError } = await supabase
+          .from('story_phases')
+          .insert(phases);
+
+        if (phasesError) throw phasesError;
       } else {
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert(taskData)
+        const maxPosition = stories.length > 0
+          ? Math.max(...stories.map(s => s.position))
+          : 0;
+
+        const { data: newStory, error: storyError } = await supabase
+          .from('design_stories')
+          .insert({
+            project_id: projectId,
+            name: data.name,
+            color: data.color,
+            start_date: data.start_date,
+            end_date: data.start_date,
+            handoff_date: data.handoff_date,
+            position: maxPosition + 1
+          })
           .select()
           .single();
 
-        if (error) throw error;
+        if (storyError) throw storyError;
 
-        setTasks((prev) => [...prev, data]);
+        const phases = data.phases.map((phase, index) => ({
+          story_id: newStory.id,
+          name: phase.name,
+          duration_days: phase.duration_days,
+          order: index + 1,
+          color: phase.color || null
+        }));
+
+        const { error: phasesError } = await supabase
+          .from('story_phases')
+          .insert(phases);
+
+        if (phasesError) throw phasesError;
       }
 
-      setShowTaskModal(false);
-      setSelectedTask(null);
-      setNewTaskData(null);
+      setShowStoryModal(false);
+      setSelectedStory(null);
+      loadStories();
     } catch (error) {
-      console.error('Error saving task:', error);
-      alert('Erro ao salvar tarefa');
+      console.error('[RoadmapGantt] Error saving story:', error);
+      alert('Erro ao salvar história. Tente novamente.');
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    try {
-      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
-
-      if (error) throw error;
-
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      setShowTaskModal(false);
-      setSelectedTask(null);
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      alert('Erro ao excluir tarefa');
-    }
-  };
-
-  const handleSaveHandoff = async () => {
-    if (!handoffDate) {
-      alert('Por favor, selecione uma data');
+  const handleDeleteStory = async (storyId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta história? Esta ação não pode ser desfeita.')) {
       return;
     }
 
     try {
-      const adjustedDate = formatDate(adjustToBusinessDay(parseDate(handoffDate)));
-
       const { error } = await supabase
-        .from('projects')
-        .update({ handoff_date: adjustedDate })
-        .eq('id', projectId);
+        .from('design_stories')
+        .delete()
+        .eq('id', storyId);
 
       if (error) throw error;
 
-      setProject((prev) => (prev ? { ...prev, handoff_date: adjustedDate } : null));
-      setHandoffDate(adjustedDate);
-      setShowHandoffModal(false);
-
-      const tasksAfterHandoff = tasks.filter((task) => {
-        const taskEnd = parseDate(task.end_date);
-        const handoff = parseDate(adjustedDate);
-        return taskEnd > handoff;
-      });
-
-      if (tasksAfterHandoff.length > 0) {
-        alert(
-          `Atenção: ${tasksAfterHandoff.length} tarefa(s) terminam após a data de handoff. Revise seu planejamento.`
-        );
-      }
+      loadStories();
     } catch (error) {
-      console.error('Error saving handoff:', error);
-      alert('Erro ao salvar data de handoff');
+      console.error('[RoadmapGantt] Error deleting story:', error);
+      alert('Erro ao excluir história. Tente novamente.');
+    }
+  };
+
+  const handleToggleCollapse = async (storyId: string) => {
+    const story = stories.find(s => s.id === storyId);
+    if (!story) return;
+
+    try {
+      const { error } = await supabase
+        .from('design_stories')
+        .update({ collapsed: !story.collapsed })
+        .eq('id', storyId);
+
+      if (error) throw error;
+
+      setStories(stories.map(s =>
+        s.id === storyId ? { ...s, collapsed: !s.collapsed } : s
+      ));
+    } catch (error) {
+      console.error('[RoadmapGantt] Error toggling collapse:', error);
+    }
+  };
+
+  const handleResizePhase = async (phaseId: string, newDurationDays: number) => {
+    try {
+      const { error } = await supabase
+        .from('story_phases')
+        .update({ duration_days: newDurationDays })
+        .eq('id', phaseId);
+
+      if (error) throw error;
+
+      loadStories();
+    } catch (error) {
+      console.error('[RoadmapGantt] Error resizing phase:', error);
+    }
+  };
+
+  const handleZoomChange = async (newZoom: ZoomLevel) => {
+    setZoomLevel(newZoom);
+    try {
+      await supabase
+        .from('projects')
+        .update({ zoom_level: newZoom })
+        .eq('id', projectId);
+    } catch (error) {
+      console.error('[RoadmapGantt] Error saving zoom:', error);
+    }
+  };
+
+  const handleSprintChange = async (newSprint: SprintDuration) => {
+    setSprintDuration(newSprint);
+    try {
+      await supabase
+        .from('projects')
+        .update({ sprint_duration_weeks: newSprint })
+        .eq('id', projectId);
+    } catch (error) {
+      console.error('[RoadmapGantt] Error saving sprint:', error);
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-black"></div>
-          <p className="mt-4 text-gray-600">Carregando roadmap...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-black"></div>
       </div>
     );
   }
@@ -218,13 +292,9 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   }
 
   const projectStartDate = parseDate(project.start_date);
+  const cellWidth = (BASE_CELL_WIDTH * zoomLevel) / 100;
   const businessDays = generateBusinessDaysRange(projectStartDate, NUMBER_OF_WEEKS);
   const weeks = groupBusinessDaysByWeek(businessDays);
-
-  const handoffDateObj = project.handoff_date ? parseDate(project.handoff_date) : null;
-  const handoffDayIndex = handoffDateObj
-    ? businessDays.findIndex((day) => isSameDay(day.date, handoffDateObj))
-    : -1;
 
   return (
     <div className="min-h-screen bg-white">
@@ -245,20 +315,25 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
 
             <div className="flex items-center gap-4">
               {viewMode === 'roadmap' && (
-                <button
-                  onClick={() => setShowHandoffModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
-                >
-                  <Calendar className="w-5 h-5" />
-                  <span className="font-bold">
-                    Handoff: {project.handoff_date ? new Date(project.handoff_date).toLocaleDateString('pt-BR') : 'Não definido'}
-                  </span>
-                </button>
+                <>
+                  <RoadmapControls
+                    zoomLevel={zoomLevel}
+                    sprintDuration={sprintDuration}
+                    onZoomChange={handleZoomChange}
+                    onSprintChange={handleSprintChange}
+                  />
+                  <button
+                    onClick={handleCreateStory}
+                    className="flex items-center gap-2 px-6 py-3 bg-black text-white font-bold hover:bg-gray-800 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Nova História
+                  </button>
+                </>
               )}
             </div>
           </div>
 
-          {/* View Tabs */}
           <div className="flex border-t-2 border-black -mb-[2px]">
             <button
               onClick={() => setViewMode('roadmap')}
@@ -286,116 +361,78 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
         </div>
       </header>
 
-      {/* Content Area */}
       {viewMode === 'kanban' ? (
         <div className="p-6">
           <KanbanBoard projectId={projectId} />
         </div>
       ) : (
         <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          <div className="flex">
-            <div className="w-48 flex-shrink-0 border-r-2 border-black bg-gray-100">
-              <div className="p-4 border-b-2 border-black">
-                <h3 className="font-bold text-sm">FASES</h3>
+          {stories.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12">
+              <div className="text-center max-w-md">
+                <h3 className="text-2xl font-bold mb-4">Comece criando sua primeira história</h3>
+                <p className="text-gray-600 mb-8">
+                  Histórias de design representam iniciativas maiores no seu roadmap.
+                  Cada história pode ter múltiplas fases (Discovery, Ideação, Prototipação, etc).
+                </p>
+                <button
+                  onClick={handleCreateStory}
+                  className="flex items-center gap-2 px-8 py-4 bg-black text-white font-bold hover:bg-gray-800 transition-colors mx-auto"
+                >
+                  <Plus className="w-5 h-5" />
+                  Criar Primeira História
+                </button>
               </div>
             </div>
+          ) : (
+            <div className="inline-block min-w-full">
+              <div className="flex">
+                <div className="w-64 flex-shrink-0 border-r-2 border-black bg-gray-100 sticky left-0 z-30">
+                  <div className="p-4 border-b-2 border-black" style={{ height: '60px' }}>
+                    <h3 className="font-bold text-sm">SPRINTS</h3>
+                  </div>
+                  <div className="p-4 border-b-2 border-black" style={{ height: '50px' }}>
+                    <h3 className="font-bold text-sm">HISTÓRIAS</h3>
+                  </div>
+                </div>
 
-            <div className="flex-1">
-              <GanttTimeline
-                weeks={weeks}
-                projectStartDate={projectStartDate}
-                sprintDurationWeeks={project.sprint_duration_weeks}
-                cellWidth={CELL_WIDTH}
-              />
-            </div>
-          </div>
+                <div className="flex-1">
+                  <StoriesTimeline
+                    weeks={weeks}
+                    projectStartDate={projectStartDate}
+                    sprintDuration={sprintDuration}
+                    cellWidth={cellWidth}
+                  />
+                </div>
+              </div>
 
-          <div className="flex border-t-2 border-black relative">
-            <div className="relative">
-              {phases.map((phase) => (
-                <GanttRow
-                  key={phase.id}
-                  phase={phase}
-                  tasks={tasks.filter((t) => t.phase_id === phase.id)}
+              {stories.map(story => (
+                <StoryRow
+                  key={story.id}
+                  story={story}
+                  cellWidth={cellWidth}
                   businessDays={businessDays}
-                  cellWidth={CELL_WIDTH}
-                  onTaskClick={handleTaskClick}
-                  onCreateTask={handleCreateTask}
+                  onToggleCollapse={handleToggleCollapse}
+                  onEditStory={handleEditStory}
+                  onDeleteStory={handleDeleteStory}
+                  onResizePhase={handleResizePhase}
                 />
               ))}
             </div>
-
-            {handoffDayIndex >= 0 && (
-              <div
-                className="absolute top-0 bottom-0 w-1 bg-red-600 pointer-events-none z-10"
-                style={{ left: `${48 * 4 + handoffDayIndex * CELL_WIDTH + CELL_WIDTH / 2}px` }}
-              >
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-600 text-white px-2 py-1 text-xs font-bold whitespace-nowrap">
-                  HANDOFF
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      </div>
       )}
 
-      {showTaskModal && (
-        <TaskModal
-          task={selectedTask}
-          phases={phases}
-          defaultPhaseId={newTaskData?.phaseId}
-          defaultStartDate={newTaskData?.startDate}
-          defaultEndDate={newTaskData?.endDate}
-          onSave={handleSaveTask}
-          onDelete={handleDeleteTask}
+      {showStoryModal && (
+        <StoryModal
+          story={selectedStory}
+          projectStartDate={project.start_date}
+          onSave={handleSaveStory}
           onClose={() => {
-            setShowTaskModal(false);
-            setSelectedTask(null);
-            setNewTaskData(null);
+            setShowStoryModal(false);
+            setSelectedStory(null);
           }}
         />
-      )}
-
-      {showHandoffModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 max-w-md w-full border-4 border-black">
-            <h2 className="text-2xl font-bold mb-6">Definir Data de Handoff</h2>
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-bold mb-2">
-                  Data de entrega
-                </label>
-                <input
-                  type="date"
-                  value={handoffDate}
-                  onChange={(e) => setHandoffDate(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black"
-                />
-                <p className="text-xs text-gray-600 mt-2">
-                  A data será ajustada automaticamente para o próximo dia útil, se necessário.
-                </p>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowHandoffModal(false)}
-                  className="flex-1 border-2 border-black py-3 px-6 font-bold hover:bg-gray-100 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSaveHandoff}
-                  className="flex-1 bg-black text-white py-3 px-6 font-bold hover:bg-gray-800 transition-colors"
-                >
-                  Salvar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

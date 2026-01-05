@@ -10,7 +10,7 @@ interface StoryTaskModalProps {
   defaultPhaseId?: string;
   defaultStartDate?: Date;
   defaultEndDate?: Date;
-  onSave: (taskData: Partial<StoryTask>, storyId: string) => void;
+  onSave: (taskData: Partial<StoryTask>, storyId: string) => Promise<void>;
   onDelete?: (taskId: string) => void;
   onClose: () => void;
 }
@@ -99,21 +99,25 @@ export const StoryTaskModal = ({
 
     setSaving(true);
 
-    const taskData: Partial<StoryTask> = {
-      name: name.trim(),
-      phase_id: phaseId,
-      type,
-      start_date: startDate,
-      end_date: endDate,
-      status,
-      notes: notes.trim() || null,
-    };
+    try {
+      const taskData: Partial<StoryTask> = {
+        name: name.trim(),
+        phase_id: phaseId,
+        type,
+        start_date: startDate,
+        end_date: endDate,
+        status,
+        notes: notes.trim() || null,
+      };
 
-    if (task) {
-      taskData.id = task.id;
+      if (task) {
+        taskData.id = task.id;
+      }
+
+      await onSave(taskData, storyId);
+    } finally {
+      setSaving(false);
     }
-
-    onSave(taskData, storyId);
   };
 
   const handleDelete = () => {

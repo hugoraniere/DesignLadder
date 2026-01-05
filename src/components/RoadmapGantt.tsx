@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, Settings } from 'lucide-react';
+import { ArrowLeft, Calendar, Settings, KanbanSquare, GitBranch } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Project, Phase, Task } from '../types/roadmap';
 import {
@@ -14,6 +14,7 @@ import { GanttTimeline } from './GanttTimeline';
 import { GanttRow } from './GanttRow';
 import { TaskModal } from './TaskModal';
 import { Logo } from './Logo';
+import { KanbanBoard } from './KanbanBoard';
 
 interface RoadmapGanttProps {
   projectId: string;
@@ -22,6 +23,8 @@ interface RoadmapGanttProps {
 
 const CELL_WIDTH = 60;
 const NUMBER_OF_WEEKS = 12;
+
+type ViewMode = 'roadmap' | 'kanban';
 
 export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   const [project, setProject] = useState<Project | null>(null);
@@ -37,6 +40,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   } | null>(null);
   const [showHandoffModal, setShowHandoffModal] = useState(false);
   const [handoffDate, setHandoffDate] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('roadmap');
 
   useEffect(() => {
     loadProjectData();
@@ -240,21 +244,55 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
             </div>
 
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowHandoffModal(true)}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
-              >
-                <Calendar className="w-5 h-5" />
-                <span className="font-bold">
-                  Handoff: {project.handoff_date ? new Date(project.handoff_date).toLocaleDateString('pt-BR') : 'Não definido'}
-                </span>
-              </button>
+              {viewMode === 'roadmap' && (
+                <button
+                  onClick={() => setShowHandoffModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                >
+                  <Calendar className="w-5 h-5" />
+                  <span className="font-bold">
+                    Handoff: {project.handoff_date ? new Date(project.handoff_date).toLocaleDateString('pt-BR') : 'Não definido'}
+                  </span>
+                </button>
+              )}
             </div>
+          </div>
+
+          {/* View Tabs */}
+          <div className="flex border-t-2 border-black -mb-[2px]">
+            <button
+              onClick={() => setViewMode('roadmap')}
+              className={`flex items-center gap-2 px-6 py-3 font-bold border-r-2 border-black transition-colors ${
+                viewMode === 'roadmap'
+                  ? 'bg-white border-b-2 border-white -mb-[2px] relative z-10'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              <GitBranch className="w-5 h-5" />
+              Roadmap
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`flex items-center gap-2 px-6 py-3 font-bold border-r-2 border-black transition-colors ${
+                viewMode === 'kanban'
+                  ? 'bg-white border-b-2 border-white -mb-[2px] relative z-10'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              <KanbanSquare className="w-5 h-5" />
+              Kanban
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="overflow-x-auto">
+      {/* Content Area */}
+      {viewMode === 'kanban' ? (
+        <div className="p-6">
+          <KanbanBoard projectId={projectId} />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
         <div className="inline-block min-w-full">
           <div className="flex">
             <div className="w-48 flex-shrink-0 border-r-2 border-black bg-gray-100">
@@ -301,6 +339,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
           </div>
         </div>
       </div>
+      )}
 
       {showTaskModal && (
         <TaskModal

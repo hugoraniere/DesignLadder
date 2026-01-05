@@ -56,12 +56,24 @@ export const ProjectDashboard = ({ onSelectProject }: ProjectDashboardProps) => 
       return;
     }
 
+    if (!user?.id) {
+      alert('Erro: usuário não autenticado');
+      return;
+    }
+
     setCreating(true);
 
     try {
+      console.log('[ProjectDashboard] Criando projeto:', {
+        name: newProjectName.trim(),
+        user_id: user.id,
+        start_date: newProjectStartDate
+      });
+
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .insert({
+          user_id: user.id,
           name: newProjectName.trim(),
           description: newProjectDescription.trim() || null,
           start_date: newProjectStartDate,
@@ -70,7 +82,12 @@ export const ProjectDashboard = ({ onSelectProject }: ProjectDashboardProps) => 
         .select()
         .single();
 
-      if (projectError) throw projectError;
+      if (projectError) {
+        console.error('[ProjectDashboard] Erro ao criar projeto:', projectError);
+        throw projectError;
+      }
+
+      console.log('[ProjectDashboard] Projeto criado:', project.id);
 
       const defaultPhases = [
         { name: 'Discovery', order: 1 },

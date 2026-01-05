@@ -483,21 +483,6 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
               </div>
             </div>
 
-            <div className="flex">
-              <div className="w-64 flex-shrink-0 border-r-2 border-gray-200 bg-gray-50 sticky left-0 z-20" />
-              <div className="flex-1 relative border-b border-gray-200" style={{ height: '60px' }}>
-                <div className="absolute inset-0 flex">
-                  {businessDays.map((day, index) => (
-                    <div
-                      key={index}
-                      className="border-r border-gray-100"
-                      style={{ width: `${cellWidth}px` }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
             {stories.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-gray-400">
                 <p className="text-sm">Clique em "Nova História" para começar</p>

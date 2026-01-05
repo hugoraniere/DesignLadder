@@ -39,6 +39,7 @@ export const StoryRow = ({
   const [drawStart, setDrawStart] = useState<number | null>(null);
   const [drawEnd, setDrawEnd] = useState<number | null>(null);
   const [drawPhaseId, setDrawPhaseId] = useState<string | null>(null);
+  const [drawLane, setDrawLane] = useState<number>(0);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const storyStartDate = parseDate(story.start_date);
@@ -108,15 +109,20 @@ export const StoryRow = ({
 
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     const cellIndex = Math.floor(x / cellWidth);
 
     const phaseId = getPhaseAtPosition(cellIndex);
     if (!phaseId) return;
 
+    const yAfterHeader = y - PHASE_HEADER_HEIGHT;
+    const lane = Math.max(0, Math.floor(yAfterHeader / LANE_HEIGHT));
+
     setIsDrawing(true);
     setDrawStart(cellIndex);
     setDrawEnd(cellIndex);
     setDrawPhaseId(phaseId);
+    setDrawLane(lane);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -135,6 +141,7 @@ export const StoryRow = ({
       setDrawStart(null);
       setDrawEnd(null);
       setDrawPhaseId(null);
+      setDrawLane(0);
       return;
     }
 
@@ -152,6 +159,7 @@ export const StoryRow = ({
     setDrawStart(null);
     setDrawEnd(null);
     setDrawPhaseId(null);
+    setDrawLane(0);
   };
 
   const getDrawingOverlay = () => {
@@ -163,6 +171,7 @@ export const StoryRow = ({
     return {
       left: startIndex * cellWidth,
       width: (endIndex - startIndex + 1) * cellWidth,
+      lane: drawLane,
     };
   };
 
@@ -173,7 +182,7 @@ export const StoryRow = ({
   const LANE_HEIGHT = 32;
   const PHASE_HEADER_HEIGHT = 24;
   const BOTTOM_PADDING = 4;
-  const rowHeight = Math.max(80, PHASE_HEADER_HEIGHT + (taskLayout.totalLanes * LANE_HEIGHT) + BOTTOM_PADDING);
+  const rowHeight = Math.max(80, PHASE_HEADER_HEIGHT + ((taskLayout.totalLanes + 1) * LANE_HEIGHT) + BOTTOM_PADDING);
 
   const drawingOverlay = getDrawingOverlay();
 
@@ -277,12 +286,42 @@ export const StoryRow = ({
               ))}
             </div>
 
+            {(() => {
+              const storyStartIndex = businessDays.findIndex(day =>
+                isSameDay(day.date, storyStartDate)
+              );
+              const storyEndDate = parseDate(story.end_date);
+              const storyEndIndex = businessDays.findIndex(day =>
+                isSameDay(day.date, storyEndDate)
+              );
+
+              if (storyStartIndex === -1 || storyEndIndex === -1) return null;
+
+              const storyLeft = storyStartIndex * cellWidth;
+              const storyWidth = (storyEndIndex - storyStartIndex + 1) * cellWidth;
+
+              return (
+                <div
+                  className="absolute border-2 border-dashed pointer-events-none"
+                  style={{
+                    left: `${storyLeft}px`,
+                    width: `${storyWidth}px`,
+                    top: 0,
+                    height: '100%',
+                    borderColor: `${story.color}40`,
+                    backgroundColor: `${story.color}08`,
+                    zIndex: 0
+                  }}
+                />
+              );
+            })()}
+
             <div
               className="absolute left-0 right-0 border-t border-gray-300"
               style={{ top: `${PHASE_HEADER_HEIGHT}px` }}
             />
 
-            {taskLayout.totalLanes > 1 && Array.from({ length: taskLayout.totalLanes - 1 }).map((_, index) => (
+            {Array.from({ length: taskLayout.totalLanes }).map((_, index) => (
               <div
                 key={index}
                 className="absolute left-0 right-0 border-t border-gray-100"
@@ -347,7 +386,7 @@ export const StoryRow = ({
                 style={{
                   left: `${drawingOverlay.left}px`,
                   width: `${drawingOverlay.width}px`,
-                  top: `${PHASE_HEADER_HEIGHT}px`,
+                  top: `${PHASE_HEADER_HEIGHT + (drawingOverlay.lane * LANE_HEIGHT)}px`,
                   height: `${LANE_HEIGHT - 4}px`,
                 }}
               />

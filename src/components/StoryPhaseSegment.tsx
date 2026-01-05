@@ -26,6 +26,7 @@ export const StoryPhaseSegment = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartDuration, setDragStartDuration] = useState(phase.duration_days);
+  const [tempDuration, setTempDuration] = useState<number | null>(null);
 
   const getPhaseStartIndex = () => {
     return businessDays.findIndex(day =>
@@ -41,7 +42,9 @@ export const StoryPhaseSegment = ({
 
   const startIndex = getPhaseStartIndex();
   const endIndex = getPhaseEndIndex();
-  const width = (endIndex - startIndex + 1) * cellWidth;
+
+  const displayDuration = tempDuration !== null ? tempDuration : phase.duration_days;
+  const width = displayDuration * cellWidth;
   const left = startIndex * cellWidth;
 
   const handleDividerMouseDown = (e: React.MouseEvent) => {
@@ -49,22 +52,32 @@ export const StoryPhaseSegment = ({
 
     e.preventDefault();
     e.stopPropagation();
+
+    const startX = e.clientX;
+    const startDuration = phase.duration_days;
+
     setIsDragging(true);
-    setDragStartX(e.clientX);
-    setDragStartDuration(phase.duration_days);
+    setDragStartX(startX);
+    setDragStartDuration(startDuration);
+    setTempDuration(startDuration);
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - dragStartX;
+      const deltaX = moveEvent.clientX - startX;
       const daysDelta = Math.round(deltaX / cellWidth);
-      const newDuration = Math.max(1, dragStartDuration + daysDelta);
-
-      if (newDuration !== phase.duration_days && onResizePhase) {
-        onResizePhase(phase.id, newDuration);
-      }
+      const newDuration = Math.max(1, startDuration + daysDelta);
+      setTempDuration(newDuration);
     };
 
     const handleMouseUp = () => {
+      const deltaX = document.documentElement.clientWidth;
+      const finalDuration = tempDuration || startDuration;
+
+      if (finalDuration !== phase.duration_days && onResizePhase) {
+        onResizePhase(phase.id, finalDuration);
+      }
+
       setIsDragging(false);
+      setTempDuration(null);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };

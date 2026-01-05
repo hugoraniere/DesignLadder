@@ -552,7 +552,7 @@ export const RoadmapGantt = ({ projectId, onBack, onNavigateToKanban, onNavigate
       </header>
 
       <div className="overflow-x-auto">
-          <div className="inline-block min-w-full">
+          <div className="inline-block min-w-full relative">
             <div className="flex">
               {showLeftColumn && (
                 <div className="w-48 flex-shrink-0 border-r-2 border-black bg-gray-50 sticky left-0 z-30">
@@ -574,6 +574,35 @@ export const RoadmapGantt = ({ projectId, onBack, onNavigateToKanban, onNavigate
                 />
               </div>
             </div>
+
+            {(() => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const todayIndex = businessDays.findIndex(d => {
+                const checkDate = new Date(d);
+                checkDate.setHours(0, 0, 0, 0);
+                return checkDate.getTime() === today.getTime();
+              });
+
+              if (todayIndex !== -1) {
+                const leftOffset = showLeftColumn ? 192 : 0;
+                const linePosition = leftOffset + (todayIndex * cellWidth) + (cellWidth / 2);
+                return (
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
+                    style={{
+                      left: `${linePosition}px`,
+                      zIndex: 100
+                    }}
+                  >
+                    <div className="absolute top-24 -left-12 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      Hoje
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {filteredStories.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-gray-400">

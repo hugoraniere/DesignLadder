@@ -37,24 +37,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    console.log('[AuthContext] signUp iniciado para:', email);
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: window.location.origin + '/#app',
         data: {
           full_name: fullName,
         },
       },
     });
 
+    console.log('[AuthContext] signUp resposta:', {
+      hasUser: !!data.user,
+      hasSession: !!data.session,
+      error: error?.message
+    });
+
+    if (!error && data.user) {
+      console.log('[AuthContext] Usuário criado:', data.user.id);
+      if (data.session) {
+        console.log('[AuthContext] Sessão criada, setando estado...');
+        setUser(data.user);
+        setSession(data.session);
+      } else {
+        console.warn('[AuthContext] Usuário criado mas sem sessão - confirmação de email pode estar habilitada');
+      }
+    }
+
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log('[AuthContext] signIn iniciado para:', email);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    console.log('[AuthContext] signIn resposta:', {
+      hasUser: !!data.user,
+      hasSession: !!data.session,
+      error: error?.message
+    });
+
+    if (!error && data.session) {
+      console.log('[AuthContext] Login bem-sucedido!');
+    }
 
     return { error };
   };

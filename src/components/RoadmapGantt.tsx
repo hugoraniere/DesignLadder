@@ -45,6 +45,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   const [taskDraftPhaseId, setTaskDraftPhaseId] = useState<string | null>(null);
   const [taskDraftStartDate, setTaskDraftStartDate] = useState<Date | null>(null);
   const [taskDraftEndDate, setTaskDraftEndDate] = useState<Date | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadProjectData();
@@ -335,7 +336,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
       setTaskDraftPhaseId(null);
       setTaskDraftStartDate(null);
       setTaskDraftEndDate(null);
-      loadStories();
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('[RoadmapGantt] Error saving task:', error);
       alert('Erro ao salvar tarefa. Tente novamente.');
@@ -353,7 +354,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
 
       setShowTaskModal(false);
       setSelectedTask(null);
-      loadStories();
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('[RoadmapGantt] Error deleting task:', error);
       alert('Erro ao excluir tarefa. Tente novamente.');
@@ -514,6 +515,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
                   onResizePhase={handleResizePhase}
                   onCreateTask={handleCreateTask}
                   onTaskClick={handleTaskClick}
+                  refreshTrigger={refreshTrigger}
                 />
               ))
             )}

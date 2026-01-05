@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Calendar, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { DesignStoryWithPhases, StoryTask } from '../types/designStories';
 import { StoryPhaseSegment } from './StoryPhaseSegment';
 import { parseDate, isSameDay, formatDate } from '../utils/businessDays';
 import { ContextMenu } from './ContextMenu';
 import { supabase } from '../lib/supabase';
+import { calculateTaskLanes } from '../utils/taskStacking';
 
 interface StoryRowProps {
   story: DesignStoryWithPhases;
@@ -16,6 +17,7 @@ interface StoryRowProps {
   onResizePhase: (phaseId: string, newDurationDays: number) => void;
   onCreateTask: (storyId: string, phaseId: string, startDate: Date, endDate: Date) => void;
   onTaskClick: (task: StoryTask) => void;
+  refreshTrigger?: number;
 }
 
 export const StoryRow = ({
@@ -27,7 +29,8 @@ export const StoryRow = ({
   onDeleteStory,
   onResizePhase,
   onCreateTask,
-  onTaskClick
+  onTaskClick,
+  refreshTrigger
 }: StoryRowProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -42,7 +45,7 @@ export const StoryRow = ({
 
   useEffect(() => {
     loadTasks();
-  }, [story.id]);
+  }, [story.id, story.phases, refreshTrigger]);
 
   const loadTasks = async () => {
     try {
@@ -163,26 +166,14 @@ export const StoryRow = ({
     };
   };
 
-  const getTaskPosition = (task: StoryTask) => {
-    const startDate = parseDate(task.start_date);
-    const endDate = parseDate(task.end_date);
+  const taskLayout = useMemo(() => {
+    return calculateTaskLanes(tasks, businessDays, cellWidth);
+  }, [tasks, businessDays, cellWidth]);
 
-    const startIndex = businessDays.findIndex((day) =>
-      isSameDay(day.date, startDate)
-    );
-    const endIndex = businessDays.findIndex((day) =>
-      isSameDay(day.date, endDate)
-    );
-
-    if (startIndex === -1 || endIndex === -1) {
-      return null;
-    }
-
-    return {
-      left: startIndex * cellWidth,
-      width: (endIndex - startIndex + 1) * cellWidth,
-    };
-  };
+  const LANE_HEIGHT = 32;
+  const PHASE_HEADER_HEIGHT = 24;
+  const BOTTOM_PADDING = 4;
+  const rowHeight = Math.max(80, PHASE_HEADER_HEIGHT + (taskLayout.totalLanes * LANE_HEIGHT) + BOTTOM_PADDING);
 
   const drawingOverlay = getDrawingOverlay();
 
@@ -263,7 +254,8 @@ export const StoryRow = ({
 
       <div
         ref={timelineRef}
-        className={`flex-1 relative h-20 ${!story.collapsed ? 'cursor-crosshair' : ''}`}
+        className={`flex-1 relative ${!story.collapsed ? 'cursor-crosshair' : ''}`}
+        style={{ height: `${rowHeight}px` }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -285,7 +277,18 @@ export const StoryRow = ({
               ))}
             </div>
 
-            <div className="absolute top-[24px] left-0 right-0 border-t border-gray-300" />
+            <div
+              className="absolute left-0 right-0 border-t border-gray-300"
+              style={{ top: `${PHASE_HEADER_HEIGHT}px` }}
+            />
+
+            {taskLayout.totalLanes > 1 && Array.from({ length: taskLayout.totalLanes - 1 }).map((_, index) => (
+              <div
+                key={index}
+                className="absolute left-0 right-0 border-t border-gray-100"
+                style={{ top: `${PHASE_HEADER_HEIGHT + (index + 1) * LANE_HEIGHT}px` }}
+              />
+            ))}
 
             {story.phases.map((phase, index) => {
               const phaseStartDate = getPhaseStartDate(index);
@@ -306,21 +309,26 @@ export const StoryRow = ({
               );
             })}
 
-            {tasks.map((task) => {
-              const position = getTaskPosition(task);
-              if (!position) return null;
+            {taskLayout.positions.map((position) => {
+              const task = tasks.find(t => t.id === position.taskId);
+              if (!task) return null;
 
               const isActivity = task.type === 'activity';
               const bgColor = isActivity ? 'bg-blue-500' : 'bg-yellow-400';
               const hoverColor = isActivity ? 'hover:bg-blue-600' : 'hover:bg-yellow-500';
 
+              const top = PHASE_HEADER_HEIGHT + (position.lane * LANE_HEIGHT);
+              const height = LANE_HEIGHT - 4;
+
               return (
                 <div
                   key={task.id}
-                  className={`absolute top-[28px] bottom-[4px] ${bgColor} ${hoverColor} text-white px-2 py-1 cursor-pointer border border-white flex items-center transition-colors z-10`}
+                  className={`absolute ${bgColor} ${hoverColor} text-white px-2 py-1 cursor-pointer border border-white flex items-center transition-colors z-10 rounded`}
                   style={{
                     left: `${position.left}px`,
                     width: `${position.width}px`,
+                    top: `${top}px`,
+                    height: `${height}px`,
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -335,10 +343,12 @@ export const StoryRow = ({
 
             {drawingOverlay && (
               <div
-                className="absolute top-[28px] bottom-[4px] bg-gray-400 opacity-50 border-2 border-dashed border-gray-600 pointer-events-none z-15"
+                className="absolute bg-gray-400 opacity-50 border-2 border-dashed border-gray-600 pointer-events-none z-15 rounded"
                 style={{
                   left: `${drawingOverlay.left}px`,
                   width: `${drawingOverlay.width}px`,
+                  top: `${PHASE_HEADER_HEIGHT}px`,
+                  height: `${LANE_HEIGHT - 4}px`,
                 }}
               />
             )}

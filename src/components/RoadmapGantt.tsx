@@ -243,12 +243,65 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
 
   const handleResizePhase = async (phaseId: string, newDurationDays: number) => {
     try {
-      const { error } = await supabase
-        .from('story_phases')
-        .update({ duration_days: newDurationDays })
-        .eq('id', phaseId);
+      const story = stories.find(s => s.phases.some(p => p.id === phaseId));
+      if (!story) return;
 
-      if (error) throw error;
+      const phaseIndex = story.phases.findIndex(p => p.id === phaseId);
+      if (phaseIndex === -1) return;
+
+      const currentPhase = story.phases[phaseIndex];
+      const durationDelta = newDurationDays - currentPhase.duration_days;
+
+      if (phaseIndex < story.phases.length - 1) {
+        const nextPhase = story.phases[phaseIndex + 1];
+        const newNextPhaseDuration = nextPhase.duration_days - durationDelta;
+
+        if (newNextPhaseDuration < 1) {
+          console.warn('[RoadmapGantt] Cannot resize: next phase would be too small');
+          return;
+        }
+
+        const { error: error1 } = await supabase
+          .from('story_phases')
+          .update({ duration_days: newDurationDays })
+          .eq('id', phaseId);
+
+        if (error1) throw error1;
+
+        const { error: error2 } = await supabase
+          .from('story_phases')
+          .update({ duration_days: newNextPhaseDuration })
+          .eq('id', nextPhase.id);
+
+        if (error2) throw error2;
+      } else {
+        const { error } = await supabase
+          .from('story_phases')
+          .update({ duration_days: newDurationDays })
+          .eq('id', phaseId);
+
+        if (error) throw error;
+
+        const totalDays = story.phases.reduce((sum, p, i) => {
+          if (i === phaseIndex) return sum + newDurationDays;
+          return sum + p.duration_days;
+        }, 0);
+
+        const storyEndDate = new Date(story.start_date);
+        for (let i = 0; i < totalDays; i++) {
+          storyEndDate.setDate(storyEndDate.getDate() + 1);
+          while (storyEndDate.getDay() === 0 || storyEndDate.getDay() === 6) {
+            storyEndDate.setDate(storyEndDate.getDate() + 1);
+          }
+        }
+
+        const { error: storyError } = await supabase
+          .from('design_stories')
+          .update({ end_date: storyEndDate.toISOString().split('T')[0] })
+          .eq('id', story.id);
+
+        if (storyError) throw storyError;
+      }
 
       loadStories();
     } catch (error) {
@@ -473,11 +526,11 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
           <div className="inline-block min-w-full">
             <div className="flex">
               {showLeftColumn && (
-                <div className="w-64 flex-shrink-0 border-r-2 border-black bg-gray-50 sticky left-0 z-30">
-                  <div className="px-4 py-3 border-b border-gray-300 bg-gray-100" style={{ height: '50px' }}>
+                <div className="w-48 flex-shrink-0 border-r-2 border-black bg-gray-50 sticky left-0 z-30">
+                  <div className="px-3 py-3 border-b border-gray-300 bg-gray-100" style={{ height: '50px' }}>
                     <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Sprints</h3>
                   </div>
-                  <div className="px-4 py-3 border-b-2 border-black bg-gray-50" style={{ height: '45px' }}>
+                  <div className="px-3 py-3 border-b-2 border-black bg-gray-50" style={{ height: '45px' }}>
                     <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Histórias</h3>
                   </div>
                 </div>
@@ -521,7 +574,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
                   style={{ minHeight: '60px' }}
                 >
                   {showLeftColumn && (
-                    <div className="w-64 flex-shrink-0 border-r-2 border-gray-200 px-3 py-2 bg-white sticky left-0 z-20">
+                    <div className="w-48 flex-shrink-0 border-r-2 border-gray-200 px-2 py-2 bg-white sticky left-0 z-20">
                       <div className="flex items-center gap-2 text-gray-400 group-hover:text-gray-600 transition-colors">
                         <Plus className="w-4 h-4" />
                         <span className="text-sm font-medium">Nova História</span>

@@ -18,6 +18,15 @@ export const StoriesTimeline = ({
   sprintDuration,
   cellWidth
 }: StoriesTimelineProps) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const isTodayDate = (date: Date): boolean => {
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate.getTime() === today.getTime();
+  };
+
   const getSprintNumber = (weekNumber: number): number => {
     return Math.floor((weekNumber - 1) / sprintDuration) + 1;
   };
@@ -77,20 +86,28 @@ export const StoriesTimeline = ({
             key={week.weekNumber}
             className="flex border-r border-gray-200"
           >
-            {week.days.map((day, dayIndex) => (
-              <div
-                key={dayIndex}
-                className="border-r border-gray-200 flex flex-col items-center justify-center py-1.5"
-                style={{ width: `${cellWidth}px`, minHeight: '45px' }}
-              >
-                <div className="text-xs font-medium text-gray-700">
-                  {['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][day.dayOfWeek]}
+            {week.days.map((day, dayIndex) => {
+              const isToday = isTodayDate(day.date);
+              return (
+                <div
+                  key={dayIndex}
+                  className={`border-r border-gray-200 flex flex-col items-center justify-center py-1.5 ${
+                    isToday ? 'bg-red-50' : ''
+                  }`}
+                  style={{ width: `${cellWidth}px`, minHeight: '45px' }}
+                >
+                  {isToday && (
+                    <div className="w-2 h-2 rounded-full bg-red-500 mb-1" />
+                  )}
+                  <div className={`text-xs font-medium ${isToday ? 'text-red-700' : 'text-gray-700'}`}>
+                    {['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][day.dayOfWeek]}
+                  </div>
+                  <div className={`text-xs mt-0.5 ${isToday ? 'text-red-600' : 'text-gray-500'}`}>
+                    {day.date.getDate()}/{day.date.getMonth() + 1}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {day.date.getDate()}/{day.date.getMonth() + 1}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>

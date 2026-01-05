@@ -115,7 +115,7 @@ export const TaskBar = ({
 
   return (
     <div
-      className={`absolute ${bgColor} ${hoverColor} text-white px-2 py-1 border border-white flex items-center transition-colors z-10 rounded group`}
+      className={`task-bar absolute ${bgColor} ${hoverColor} text-white px-2 py-1 border border-white flex items-center transition-colors z-10 rounded group`}
       style={{
         left: `${displayLeft}px`,
         width: `${displayWidth}px`,

@@ -110,6 +110,11 @@ export const StoryRow = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!timelineRef.current || story.collapsed) return;
 
+    const target = e.target as HTMLElement;
+    if (target.closest('.task-bar') || target.closest('.phase-segment')) {
+      return;
+    }
+
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -119,7 +124,22 @@ export const StoryRow = ({
     if (!phaseId) return;
 
     const yAfterHeader = y - PHASE_HEADER_HEIGHT;
+    if (yAfterHeader < 0) return;
+
     const lane = Math.max(0, Math.floor(yAfterHeader / LANE_HEIGHT));
+
+    const clickedTask = taskLayout.positions.find(pos => {
+      const taskLeft = pos.left;
+      const taskRight = pos.left + pos.width;
+      const taskTop = PHASE_HEADER_HEIGHT + (pos.lane * LANE_HEIGHT);
+      const taskBottom = taskTop + LANE_HEIGHT;
+
+      return x >= taskLeft && x <= taskRight && y >= taskTop && y <= taskBottom;
+    });
+
+    if (clickedTask) {
+      return;
+    }
 
     setIsDrawing(true);
     setDrawStart(cellIndex);
@@ -192,8 +212,8 @@ export const StoryRow = ({
   return (
     <div className="flex border-b border-gray-200 hover:bg-gray-50 transition-colors group">
       {showLeftColumn && (
-        <div className="w-64 flex-shrink-0 border-r-2 border-gray-200 px-3 py-2 bg-white sticky left-0 z-20">
-          <div className="flex items-start gap-2">
+        <div className="w-48 flex-shrink-0 border-r-2 border-gray-200 px-2 py-2 bg-white sticky left-0 z-20">
+          <div className="flex items-start gap-1.5">
             <button
               onClick={() => onToggleCollapse(story.id)}
               className="p-1 hover:bg-gray-200 rounded flex-shrink-0 transition-colors"
@@ -206,19 +226,19 @@ export const StoryRow = ({
             </button>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
+              <div className="flex items-center gap-1.5 mb-0.5">
                 <div
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: story.color }}
                 />
                 <h4 className="font-semibold text-sm truncate">{story.name}</h4>
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
                 {new Date(story.start_date).toLocaleDateString('pt-BR')} →{' '}
                 {new Date(story.end_date).toLocaleDateString('pt-BR')}
               </div>
               {story.handoff_date && (
-                <div className="flex items-center gap-1 text-xs text-red-600 mt-0.5">
+                <div className="flex items-center gap-1 text-xs text-red-600 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Calendar className="w-3 h-3" />
                   <span>Handoff: {new Date(story.handoff_date).toLocaleDateString('pt-BR')}</span>
                 </div>

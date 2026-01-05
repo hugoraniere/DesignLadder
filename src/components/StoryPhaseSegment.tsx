@@ -89,7 +89,7 @@ export const StoryPhaseSegment = ({
   return (
     <>
       <div
-        className="absolute top-0 h-[24px] bg-black border border-gray-700 transition-all"
+        className="phase-segment absolute top-0 h-[24px] bg-black border border-gray-700 transition-all"
         style={{
           left: `${left}px`,
           width: `${width}px`,

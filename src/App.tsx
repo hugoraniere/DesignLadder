@@ -3,17 +3,38 @@ import { NewLandingPage } from './components/NewLandingPage';
 import { FormPage } from './components/FormPage';
 import { NewMaturityForm } from './components/NewMaturityForm';
 import { NewMaturityResult } from './components/NewMaturityResult';
-import { AdminLogin } from './components/AdminLogin';
+import { AdminLogin as OldAdminLogin } from './components/AdminLogin';
 import { NewAdminDashboard } from './components/NewAdminDashboard';
+import { Login } from './components/Login';
+import { SignUp } from './components/SignUp';
+import { ProjectDashboard } from './components/ProjectDashboard';
+import { RoadmapGantt } from './components/RoadmapGantt';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './lib/supabase';
 
-function App() {
-  const [view, setView] = useState<'landing' | 'form' | 'maturity' | 'result' | 'admin-login' | 'admin-dashboard'>('landing');
+type ViewType =
+  | 'landing'
+  | 'form'
+  | 'maturity'
+  | 'result'
+  | 'old-admin-login'
+  | 'old-admin-dashboard'
+  | 'auth'
+  | 'dashboard'
+  | 'roadmap';
+
+function AppContent() {
+  const { user, loading: authLoading } = useAuth();
+  const [view, setView] = useState<ViewType>('landing');
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [responseId, setResponseId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const checkAuth = async () => {
       const currentPath = window.location.pathname;
 
@@ -28,12 +49,12 @@ function App() {
             .maybeSingle();
 
           if (adminData) {
-            setView('admin-dashboard');
+            setView('old-admin-dashboard');
           } else {
-            setView('admin-login');
+            setView('old-admin-login');
           }
         } else {
-          setView('admin-login');
+          setView('old-admin-login');
         }
       }
       setIsAuthChecking(false);
@@ -47,9 +68,23 @@ function App() {
       if (currentPath === '/admin') {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('view') === 'dashboard') {
-          setView('admin-dashboard');
+          setView('old-admin-dashboard');
         } else {
-          setView('admin-login');
+          setView('old-admin-login');
+        }
+      } else if (window.location.hash === '#app') {
+        if (user) {
+          setView('dashboard');
+        } else {
+          setView('auth');
+        }
+      } else if (window.location.hash.startsWith('#roadmap/')) {
+        const projectId = window.location.hash.replace('#roadmap/', '');
+        if (user) {
+          setSelectedProjectId(projectId);
+          setView('roadmap');
+        } else {
+          setView('auth');
         }
       } else if (window.location.hash === '#share-challenge') {
         setView('form');
@@ -72,7 +107,7 @@ function App() {
       window.removeEventListener('hashchange', handleRouteChange);
       window.removeEventListener('popstate', handleRouteChange);
     };
-  }, []);
+  }, [user, authLoading]);
 
   const navigateToForm = () => {
     window.location.hash = '#share-challenge';
@@ -89,7 +124,18 @@ function App() {
     setView('landing');
   };
 
-  if (isAuthChecking) {
+  const navigateToDashboard = () => {
+    window.location.hash = '#app';
+    setView('dashboard');
+  };
+
+  const handleSelectProject = (projectId: string) => {
+    window.location.hash = `#roadmap/${projectId}`;
+    setSelectedProjectId(projectId);
+    setView('roadmap');
+  };
+
+  if (authLoading || isAuthChecking) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-xl font-bold">Loading...</div>
@@ -97,12 +143,30 @@ function App() {
     );
   }
 
-  if (view === 'admin-dashboard') {
+  if (view === 'old-admin-dashboard') {
     return <NewAdminDashboard />;
   }
 
-  if (view === 'admin-login') {
-    return <AdminLogin onLogin={() => setView('admin-dashboard')} />;
+  if (view === 'old-admin-login') {
+    return <OldAdminLogin onLogin={() => setView('old-admin-dashboard')} />;
+  }
+
+  if (view === 'auth') {
+    return authMode === 'login' ? (
+      <Login onToggleMode={() => setAuthMode('signup')} />
+    ) : (
+      <SignUp onToggleMode={() => setAuthMode('login')} />
+    );
+  }
+
+  if (view === 'dashboard' && user) {
+    return <ProjectDashboard onSelectProject={handleSelectProject} />;
+  }
+
+  if (view === 'roadmap' && selectedProjectId && user) {
+    return (
+      <RoadmapGantt projectId={selectedProjectId} onBack={navigateToDashboard} />
+    );
   }
 
   const handleMaturityComplete = (id: string) => {
@@ -123,6 +187,14 @@ function App() {
         <NewLandingPage onNavigateToMaturity={navigateToMaturity} onNavigateToResearch={navigateToForm} />
       )}
     </LanguageProvider>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

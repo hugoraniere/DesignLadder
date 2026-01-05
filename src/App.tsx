@@ -91,9 +91,10 @@ function AppContent() {
               const { data: newProject, error: projectError } = await supabase
                 .from('projects')
                 .insert({
+                  user_id: user.id,
                   name: 'Meu Projeto',
                   start_date: new Date().toISOString().split('T')[0],
-                  sprint_duration: 2
+                  sprint_duration_weeks: 2
                 })
                 .select()
                 .single();

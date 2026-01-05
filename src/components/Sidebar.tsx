@@ -7,11 +7,20 @@ interface SidebarProps {
   currentPage: 'dashboard' | 'roadmap' | 'kanban' | 'ceremonies' | 'nps' | 'team';
   onNavigate: (page: 'dashboard' | 'roadmap' | 'kanban' | 'ceremonies' | 'nps' | 'team') => void;
   projectName?: string;
+  onCollapseChange?: (collapsed: boolean) => void;
 }
 
-export const Sidebar = ({ currentPage, onNavigate, projectName }: SidebarProps) => {
+export const Sidebar = ({ currentPage, onNavigate, projectName, onCollapseChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { signOut } = useAuth();
+
+  const handleToggleCollapse = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    if (onCollapseChange) {
+      onCollapseChange(newState);
+    }
+  };
 
   const menuItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
@@ -40,7 +49,7 @@ export const Sidebar = ({ currentPage, onNavigate, projectName }: SidebarProps) 
         )}
         {isCollapsed && <Logo showText={false} variant="dark" />}
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={handleToggleCollapse}
           className="p-1 hover:bg-gray-100 rounded transition-colors ml-auto"
           title={isCollapsed ? 'Expandir' : 'Colapsar'}
         >

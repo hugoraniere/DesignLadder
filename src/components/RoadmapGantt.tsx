@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, KanbanSquare, GitBranch, Settings, PanelLeftClose, PanelLeftOpen, User, X, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Settings, PanelLeftClose, PanelLeftOpen, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Project } from '../types/roadmap';
 import {
@@ -21,14 +21,12 @@ import { formatDate } from '../utils/businessDays';
 interface RoadmapGanttProps {
   projectId: string;
   onBack: () => void;
-  onNavigateToKanban: () => void;
-  onNavigateToCeremonies: () => void;
 }
 
 const BASE_CELL_WIDTH = 60;
 const NUMBER_OF_WEEKS = 12;
 
-export const RoadmapGantt = ({ projectId, onBack, onNavigateToKanban, onNavigateToCeremonies }: RoadmapGanttProps) => {
+export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   const [project, setProject] = useState<Project | null>(null);
   const [stories, setStories] = useState<DesignStoryWithPhases[]>([]);
   const [loading, setLoading] = useState(true);
@@ -525,29 +523,6 @@ export const RoadmapGantt = ({ projectId, onBack, onNavigateToKanban, onNavigate
               </button>
             </div>
           </div>
-
-          <div className="flex">
-            <button
-              className="flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm bg-white border-b-2 border-black -mb-[2px] relative z-10"
-            >
-              <GitBranch className="w-4 h-4" />
-              Roadmap
-            </button>
-            <button
-              onClick={onNavigateToKanban}
-              className="flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm bg-gray-50 hover:bg-gray-100"
-            >
-              <KanbanSquare className="w-4 h-4" />
-              Kanban
-            </button>
-            <button
-              onClick={onNavigateToCeremonies}
-              className="flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm bg-gray-50 hover:bg-gray-100"
-            >
-              <Calendar className="w-4 h-4" />
-              Cerimônias
-            </button>
-          </div>
         </div>
       </header>
 
@@ -592,7 +567,7 @@ export const RoadmapGantt = ({ projectId, onBack, onNavigateToKanban, onNavigate
                     className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
                     style={{
                       left: `${linePosition}px`,
-                      zIndex: 100
+                      zIndex: 1
                     }}
                   >
                     <div className="absolute top-24 -left-12 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">

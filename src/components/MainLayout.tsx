@@ -17,6 +17,7 @@ type PageType = 'dashboard' | 'roadmap' | 'kanban' | 'ceremonies' | 'nps' | 'tea
 export const MainLayout = ({ projectId }: MainLayoutProps) => {
   const [currentPage, setCurrentPage] = useState<PageType>('dashboard');
   const [projectName, setProjectName] = useState('');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     loadProject();
@@ -57,16 +58,15 @@ export const MainLayout = ({ projectId }: MainLayoutProps) => {
         currentPage={currentPage}
         onNavigate={handleNavigate}
         projectName={projectName}
+        onCollapseChange={setIsSidebarCollapsed}
       />
 
-      <div className="flex-1 ml-64 overflow-hidden">
+      <div className={`flex-1 overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {currentPage === 'dashboard' && <Dashboard projectId={projectId} />}
         {currentPage === 'roadmap' && (
           <RoadmapGantt
             projectId={projectId}
             onBack={() => handleNavigate('dashboard')}
-            onNavigateToKanban={() => handleNavigate('kanban')}
-            onNavigateToCeremonies={() => handleNavigate('ceremonies')}
           />
         )}
         {currentPage === 'kanban' && (

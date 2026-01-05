@@ -479,7 +479,7 @@ export const StoryRow = ({
                     left: `${todayIndex * cellWidth}px`,
                     width: `${cellWidth}px`,
                     opacity: 0.4,
-                    zIndex: 100
+                    zIndex: 1
                   }}
                 />
               );

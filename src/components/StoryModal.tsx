@@ -31,6 +31,16 @@ export const StoryModal = ({ story, projectStartDate, onSave, onClose }: StoryMo
     })) || [...DEFAULT_PHASE_TEMPLATES]
   );
 
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
   const handleAddPhase = () => {
     setPhases([...phases, { name: 'Nova fase', duration_days: 5 }]);
   };

@@ -54,10 +54,10 @@ export const StoriesTimeline = ({
       return (
         <div
           key={sprint.number}
-          className="absolute top-0 bottom-0 border-r-2 border-gray-400"
+          className="absolute top-0 bottom-0 border-r border-gray-300"
           style={{ left: `${left}px`, width: `${width}px` }}
         >
-          <div className="absolute top-2 left-2 bg-gray-800 text-white px-2 py-1 text-xs font-bold rounded">
+          <div className="absolute top-1.5 left-2 bg-gray-700 text-white px-2 py-0.5 text-xs font-medium rounded">
             Sprint {sprint.number}
           </div>
         </div>
@@ -67,26 +67,26 @@ export const StoriesTimeline = ({
 
   return (
     <div>
-      <div className="relative bg-gray-200 border-b-2 border-black" style={{ height: '60px' }}>
+      <div className="relative bg-gray-100 border-b border-gray-300" style={{ height: '50px' }}>
         {renderSprints()}
       </div>
 
-      <div className="flex border-b-2 border-black bg-gray-100">
+      <div className="flex border-b-2 border-black bg-gray-50">
         {weeks.map((week) => (
           <div
             key={week.weekNumber}
-            className="flex border-r-2 border-gray-300"
+            className="flex border-r border-gray-200"
           >
             {week.days.map((day, dayIndex) => (
               <div
                 key={dayIndex}
-                className="border-r border-gray-200 flex flex-col items-center justify-center p-1"
-                style={{ width: `${cellWidth}px`, minHeight: '50px' }}
+                className="border-r border-gray-200 flex flex-col items-center justify-center py-1.5"
+                style={{ width: `${cellWidth}px`, minHeight: '45px' }}
               >
-                <div className="text-xs font-bold">
+                <div className="text-xs font-medium text-gray-700">
                   {['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][day.dayOfWeek]}
                 </div>
-                <div className="text-xs">
+                <div className="text-xs text-gray-500 mt-0.5">
                   {day.date.getDate()}/{day.date.getMonth() + 1}
                 </div>
               </div>

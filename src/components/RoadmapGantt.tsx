@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, KanbanSquare, GitBranch } from 'lucide-react';
+import { ArrowLeft, Plus, KanbanSquare, GitBranch, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Project } from '../types/roadmap';
 import {
@@ -13,7 +13,8 @@ import { DesignStoryWithPhases, ZoomLevel, SprintDuration, DEFAULT_PHASE_TEMPLAT
 import { StoriesTimeline } from './StoriesTimeline';
 import { StoryRow } from './StoryRow';
 import { StoryModal, StoryFormData } from './StoryModal';
-import { RoadmapControls } from './RoadmapControls';
+import { FloatingZoomControls } from './FloatingZoomControls';
+import { SettingsModal } from './SettingsModal';
 
 interface RoadmapGanttProps {
   projectId: string;
@@ -34,6 +35,7 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   const [selectedStory, setSelectedStory] = useState<DesignStoryWithPhases | null>(null);
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>(100);
   const [sprintDuration, setSprintDuration] = useState<SprintDuration>(2);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   useEffect(() => {
     loadProjectData();
@@ -298,35 +300,36 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="border-b-4 border-black sticky top-0 bg-white z-40">
-        <div className="max-w-full px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
+      <header className="border-b-2 border-black sticky top-0 bg-white z-40">
+        <div className="max-w-full">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200">
+            <div className="flex items-center gap-3">
               <button
                 onClick={onBack}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                className="p-2 hover:bg-gray-100 rounded transition-colors"
+                title="Voltar"
               >
                 <ArrowLeft className="w-5 h-5" />
-                <span className="font-bold">Voltar</span>
               </button>
               <Logo showText={false} variant="dark" />
-              <h1 className="text-2xl font-bold">{project.name}</h1>
+              <h1 className="text-lg font-bold">{project.name}</h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {viewMode === 'roadmap' && (
                 <>
-                  <RoadmapControls
-                    zoomLevel={zoomLevel}
-                    sprintDuration={sprintDuration}
-                    onZoomChange={handleZoomChange}
-                    onSprintChange={handleSprintChange}
-                  />
+                  <button
+                    onClick={() => setShowSettingsModal(true)}
+                    className="p-2 hover:bg-gray-100 rounded transition-colors"
+                    title="Configurações"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </button>
                   <button
                     onClick={handleCreateStory}
-                    className="flex items-center gap-2 px-6 py-3 bg-black text-white font-bold hover:bg-gray-800 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white font-medium hover:bg-gray-800 transition-colors text-sm"
                   >
-                    <Plus className="w-5 h-5" />
+                    <Plus className="w-4 h-4" />
                     Nova História
                   </button>
                 </>
@@ -334,27 +337,27 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
             </div>
           </div>
 
-          <div className="flex border-t-2 border-black -mb-[2px]">
+          <div className="flex">
             <button
               onClick={() => setViewMode('roadmap')}
-              className={`flex items-center gap-2 px-6 py-3 font-bold border-r-2 border-black transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm ${
                 viewMode === 'roadmap'
-                  ? 'bg-white border-b-2 border-white -mb-[2px] relative z-10'
-                  : 'bg-gray-100 hover:bg-gray-200'
+                  ? 'bg-white border-b-2 border-black -mb-[2px] relative z-10'
+                  : 'bg-gray-50 hover:bg-gray-100'
               }`}
             >
-              <GitBranch className="w-5 h-5" />
+              <GitBranch className="w-4 h-4" />
               Roadmap
             </button>
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-2 px-6 py-3 font-bold border-r-2 border-black transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 font-medium border-r border-gray-200 transition-colors text-sm ${
                 viewMode === 'kanban'
-                  ? 'bg-white border-b-2 border-white -mb-[2px] relative z-10'
-                  : 'bg-gray-100 hover:bg-gray-200'
+                  ? 'bg-white border-b-2 border-black -mb-[2px] relative z-10'
+                  : 'bg-gray-50 hover:bg-gray-100'
               }`}
             >
-              <KanbanSquare className="w-5 h-5" />
+              <KanbanSquare className="w-4 h-4" />
               Kanban
             </button>
           </div>
@@ -367,46 +370,33 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          {stories.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12">
-              <div className="text-center max-w-md">
-                <h3 className="text-2xl font-bold mb-4">Comece criando sua primeira história</h3>
-                <p className="text-gray-600 mb-8">
-                  Histórias de design representam iniciativas maiores no seu roadmap.
-                  Cada história pode ter múltiplas fases (Discovery, Ideação, Prototipação, etc).
-                </p>
-                <button
-                  onClick={handleCreateStory}
-                  className="flex items-center gap-2 px-8 py-4 bg-black text-white font-bold hover:bg-gray-800 transition-colors mx-auto"
-                >
-                  <Plus className="w-5 h-5" />
-                  Criar Primeira História
-                </button>
+          <div className="inline-block min-w-full">
+            <div className="flex">
+              <div className="w-64 flex-shrink-0 border-r-2 border-black bg-gray-50 sticky left-0 z-30">
+                <div className="px-4 py-3 border-b border-gray-300 bg-gray-100" style={{ height: '50px' }}>
+                  <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Sprints</h3>
+                </div>
+                <div className="px-4 py-3 border-b-2 border-black bg-gray-50" style={{ height: '45px' }}>
+                  <h3 className="font-medium text-xs text-gray-600 uppercase tracking-wide">Histórias</h3>
+                </div>
+              </div>
+
+              <div className="flex-1">
+                <StoriesTimeline
+                  weeks={weeks}
+                  projectStartDate={projectStartDate}
+                  sprintDuration={sprintDuration}
+                  cellWidth={cellWidth}
+                />
               </div>
             </div>
-          ) : (
-            <div className="inline-block min-w-full">
-              <div className="flex">
-                <div className="w-64 flex-shrink-0 border-r-2 border-black bg-gray-100 sticky left-0 z-30">
-                  <div className="p-4 border-b-2 border-black" style={{ height: '60px' }}>
-                    <h3 className="font-bold text-sm">SPRINTS</h3>
-                  </div>
-                  <div className="p-4 border-b-2 border-black" style={{ height: '50px' }}>
-                    <h3 className="font-bold text-sm">HISTÓRIAS</h3>
-                  </div>
-                </div>
 
-                <div className="flex-1">
-                  <StoriesTimeline
-                    weeks={weeks}
-                    projectStartDate={projectStartDate}
-                    sprintDuration={sprintDuration}
-                    cellWidth={cellWidth}
-                  />
-                </div>
+            {stories.length === 0 ? (
+              <div className="flex items-center justify-center py-12 text-gray-400">
+                <p className="text-sm">Clique em "Nova História" para começar</p>
               </div>
-
-              {stories.map(story => (
+            ) : (
+              stories.map(story => (
                 <StoryRow
                   key={story.id}
                   story={story}
@@ -417,10 +407,17 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
                   onDeleteStory={handleDeleteStory}
                   onResizePhase={handleResizePhase}
                 />
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
+      )}
+
+      {viewMode === 'roadmap' && (
+        <FloatingZoomControls
+          zoomLevel={zoomLevel}
+          onZoomChange={handleZoomChange}
+        />
       )}
 
       {showStoryModal && (
@@ -432,6 +429,14 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
             setShowStoryModal(false);
             setSelectedStory(null);
           }}
+        />
+      )}
+
+      {showSettingsModal && (
+        <SettingsModal
+          sprintDuration={sprintDuration}
+          onSprintChange={handleSprintChange}
+          onClose={() => setShowSettingsModal(false)}
         />
       )}
     </div>

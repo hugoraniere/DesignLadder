@@ -32,9 +32,10 @@ export const Login = ({ onToggleMode }: LoginProps) => {
       } else {
         setError(error.message);
       }
+      setLoading(false);
+    } else {
+      window.location.hash = '#app';
     }
-
-    setLoading(false);
   };
 
   return (

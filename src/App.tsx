@@ -7,7 +7,6 @@ import { AdminLogin as OldAdminLogin } from './components/AdminLogin';
 import { NewAdminDashboard } from './components/NewAdminDashboard';
 import { Login } from './components/Login';
 import { SignUp } from './components/SignUp';
-import { ProjectDashboard } from './components/ProjectDashboard';
 import { MainLayout } from './components/MainLayout';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -21,7 +20,6 @@ type ViewType =
   | 'old-admin-login'
   | 'old-admin-dashboard'
   | 'auth'
-  | 'dashboard'
   | 'app';
 
 function AppContent() {
@@ -80,31 +78,54 @@ function AppContent() {
                  window.location.hash.startsWith('#nps/') ||
                  window.location.hash.startsWith('#team/')) {
         if (user) {
-          const checkDefaultProject = async () => {
-            const { data: preferences } = await supabase
+          const checkOrCreateProject = async () => {
+            let { data: preferences } = await supabase
               .from('user_preferences')
               .select('default_project_id')
               .eq('user_id', user.id)
               .maybeSingle();
 
-            if (preferences?.default_project_id) {
-              setSelectedProjectId(preferences.default_project_id);
+            let projectId = preferences?.default_project_id;
+
+            if (!projectId) {
+              const { data: newProject, error: projectError } = await supabase
+                .from('projects')
+                .insert({
+                  name: 'Meu Projeto',
+                  start_date: new Date().toISOString().split('T')[0],
+                  sprint_duration: 2
+                })
+                .select()
+                .single();
+
+              if (!projectError && newProject) {
+                projectId = newProject.id;
+
+                await supabase
+                  .from('user_preferences')
+                  .insert({
+                    user_id: user.id,
+                    default_project_id: projectId
+                  });
+              }
+            }
+
+            if (projectId) {
+              setSelectedProjectId(projectId);
 
               if (window.location.hash === '#app') {
-                window.location.hash = `#dashboard/${preferences.default_project_id}`;
+                window.location.hash = `#dashboard/${projectId}`;
               } else {
-                const projectId = window.location.hash.split('/')[1];
-                if (projectId) {
-                  setSelectedProjectId(projectId);
+                const urlProjectId = window.location.hash.split('/')[1];
+                if (urlProjectId) {
+                  setSelectedProjectId(urlProjectId);
                 }
               }
 
               setView('app');
-            } else {
-              setView('dashboard');
             }
           };
-          checkDefaultProject();
+          checkOrCreateProject();
         } else {
           setView('auth');
         }
@@ -148,12 +169,6 @@ function AppContent() {
 
   const navigateToDashboard = () => {
     window.location.hash = '#app';
-    setView('dashboard');
-  };
-
-  const handleSelectProject = (projectId: string) => {
-    window.location.hash = `#dashboard/${projectId}`;
-    setSelectedProjectId(projectId);
     setView('app');
   };
 
@@ -181,12 +196,16 @@ function AppContent() {
     );
   }
 
-  if (view === 'dashboard' && user) {
-    return <ProjectDashboard onSelectProject={handleSelectProject} />;
-  }
-
   if (view === 'app' && selectedProjectId && user) {
     return <MainLayout projectId={selectedProjectId} />;
+  }
+
+  if (view === 'app' && !selectedProjectId && user) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-xl font-bold">Carregando projeto...</div>
+      </div>
+    );
   }
 
   const handleMaturityComplete = (id: string) => {

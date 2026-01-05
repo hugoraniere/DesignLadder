@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, AlertCircle, GitBranch, CheckCircle, Clock } from 'lucide-react';
+import { Calendar, AlertCircle, GitBranch, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 

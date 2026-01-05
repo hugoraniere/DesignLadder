@@ -26,6 +26,24 @@ export interface StoryPhase {
   updated_at: string;
 }
 
+export interface StoryTask {
+  id: string;
+  phase_id: string;
+  name: string;
+  type: 'activity' | 'meeting';
+  start_date: string;
+  end_date: string;
+  status: 'planned' | 'in_progress' | 'completed';
+  assignee: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoryPhaseWithTasks extends StoryPhase {
+  tasks: StoryTask[];
+}
+
 export interface DesignStoryWithPhases extends DesignStory {
   phases: StoryPhase[];
 }

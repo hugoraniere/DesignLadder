@@ -15,6 +15,9 @@ import { StoryRow } from './StoryRow';
 import { StoryModal, StoryFormData } from './StoryModal';
 import { FloatingZoomControls } from './FloatingZoomControls';
 import { SettingsModal } from './SettingsModal';
+import { StoryTaskModal } from './StoryTaskModal';
+import { StoryTask } from '../types/designStories';
+import { formatDate } from '../utils/businessDays';
 
 interface RoadmapGanttProps {
   projectId: string;
@@ -36,6 +39,12 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>(100);
   const [sprintDuration, setSprintDuration] = useState<SprintDuration>(2);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<StoryTask | null>(null);
+  const [taskDraftStoryId, setTaskDraftStoryId] = useState<string | null>(null);
+  const [taskDraftPhaseId, setTaskDraftPhaseId] = useState<string | null>(null);
+  const [taskDraftStartDate, setTaskDraftStartDate] = useState<Date | null>(null);
+  const [taskDraftEndDate, setTaskDraftEndDate] = useState<Date | null>(null);
 
   useEffect(() => {
     loadProjectData();
@@ -269,6 +278,88 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
     }
   };
 
+  const handleCreateTask = (storyId: string, phaseId: string, startDate: Date, endDate: Date) => {
+    setTaskDraftStoryId(storyId);
+    setTaskDraftPhaseId(phaseId);
+    setTaskDraftStartDate(startDate);
+    setTaskDraftEndDate(endDate);
+    setSelectedTask(null);
+    setShowTaskModal(true);
+  };
+
+  const handleTaskClick = (task: StoryTask) => {
+    setSelectedTask(task);
+    setTaskDraftStoryId(null);
+    setTaskDraftPhaseId(null);
+    setTaskDraftStartDate(null);
+    setTaskDraftEndDate(null);
+    setShowTaskModal(true);
+  };
+
+  const handleSaveTask = async (taskData: Partial<StoryTask>, storyId: string) => {
+    try {
+      if (selectedTask) {
+        const { error } = await supabase
+          .from('story_tasks')
+          .update({
+            name: taskData.name,
+            type: taskData.type,
+            start_date: taskData.start_date,
+            end_date: taskData.end_date,
+            status: taskData.status,
+            notes: taskData.notes,
+            phase_id: taskData.phase_id
+          })
+          .eq('id', selectedTask.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('story_tasks')
+          .insert({
+            phase_id: taskData.phase_id,
+            name: taskData.name,
+            type: taskData.type,
+            start_date: taskData.start_date,
+            end_date: taskData.end_date,
+            status: taskData.status,
+            notes: taskData.notes
+          });
+
+        if (error) throw error;
+      }
+
+      setShowTaskModal(false);
+      setSelectedTask(null);
+      setTaskDraftStoryId(null);
+      setTaskDraftPhaseId(null);
+      setTaskDraftStartDate(null);
+      setTaskDraftEndDate(null);
+      loadStories();
+    } catch (error) {
+      console.error('[RoadmapGantt] Error saving task:', error);
+      alert('Erro ao salvar tarefa. Tente novamente.');
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('story_tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      setShowTaskModal(false);
+      setSelectedTask(null);
+      loadStories();
+    } catch (error) {
+      console.error('[RoadmapGantt] Error deleting task:', error);
+      alert('Erro ao excluir tarefa. Tente novamente.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -391,6 +482,21 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
               </div>
             </div>
 
+            <div className="flex">
+              <div className="w-64 flex-shrink-0 border-r-2 border-gray-200 bg-gray-50 sticky left-0 z-20" />
+              <div className="flex-1 relative border-b border-gray-200" style={{ height: '60px' }}>
+                <div className="absolute inset-0 flex">
+                  {businessDays.map((day, index) => (
+                    <div
+                      key={index}
+                      className="border-r border-gray-100"
+                      style={{ width: `${cellWidth}px` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {stories.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-gray-400">
                 <p className="text-sm">Clique em "Nova História" para começar</p>
@@ -406,6 +512,8 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
                   onEditStory={handleEditStory}
                   onDeleteStory={handleDeleteStory}
                   onResizePhase={handleResizePhase}
+                  onCreateTask={handleCreateTask}
+                  onTaskClick={handleTaskClick}
                 />
               ))
             )}
@@ -437,6 +545,27 @@ export const RoadmapGantt = ({ projectId, onBack }: RoadmapGanttProps) => {
           sprintDuration={sprintDuration}
           onSprintChange={handleSprintChange}
           onClose={() => setShowSettingsModal(false)}
+        />
+      )}
+
+      {showTaskModal && (
+        <StoryTaskModal
+          task={selectedTask}
+          stories={stories}
+          defaultStoryId={taskDraftStoryId || undefined}
+          defaultPhaseId={taskDraftPhaseId || undefined}
+          defaultStartDate={taskDraftStartDate || undefined}
+          defaultEndDate={taskDraftEndDate || undefined}
+          onSave={handleSaveTask}
+          onDelete={selectedTask ? handleDeleteTask : undefined}
+          onClose={() => {
+            setShowTaskModal(false);
+            setSelectedTask(null);
+            setTaskDraftStoryId(null);
+            setTaskDraftPhaseId(null);
+            setTaskDraftStartDate(null);
+            setTaskDraftEndDate(null);
+          }}
         />
       )}
     </div>

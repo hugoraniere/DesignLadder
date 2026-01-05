@@ -43,6 +43,8 @@ export const StoryRow = ({
   const [drawEnd, setDrawEnd] = useState<number | null>(null);
   const [drawPhaseId, setDrawPhaseId] = useState<string | null>(null);
   const [drawLane, setDrawLane] = useState<number>(0);
+  const [isResizingStory, setIsResizingStory] = useState(false);
+  const [tempStoryEndIndex, setTempStoryEndIndex] = useState<number | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const storyStartDate = parseDate(story.start_date);
@@ -185,6 +187,74 @@ export const StoryRow = ({
     setDrawLane(0);
   };
 
+  const handleStoryResizeStart = (e: React.MouseEvent, currentEndIndex: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    setIsResizingStory(true);
+    setTempStoryEndIndex(currentEndIndex);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!timelineRef.current) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const x = moveEvent.clientX - rect.left;
+      const newEndIndex = Math.max(0, Math.min(businessDays.length - 1, Math.floor(x / cellWidth)));
+      setTempStoryEndIndex(newEndIndex);
+    };
+
+    const handleMouseUp = async () => {
+      if (tempStoryEndIndex !== null && tempStoryEndIndex !== currentEndIndex) {
+        const storyStartIndex = businessDays.findIndex(day =>
+          isSameDay(day.date, storyStartDate)
+        );
+
+        if (storyStartIndex === -1) return;
+
+        const newStoryDurationDays = tempStoryEndIndex - storyStartIndex + 1;
+        const currentTotalDays = story.phases.reduce((sum, p) => sum + p.duration_days, 0);
+        const durationDelta = newStoryDurationDays - currentTotalDays;
+
+        if (durationDelta !== 0 && story.phases.length > 0) {
+          const lastPhase = story.phases[story.phases.length - 1];
+          const newLastPhaseDuration = lastPhase.duration_days + durationDelta;
+
+          if (newLastPhaseDuration < 1) {
+            alert('A última fase precisa ter pelo menos 1 dia de duração.');
+          } else {
+            try {
+              const { error } = await supabase
+                .from('story_phases')
+                .update({ duration_days: newLastPhaseDuration })
+                .eq('id', lastPhase.id);
+
+              if (error) throw error;
+
+              const newEndDate = businessDays[tempStoryEndIndex].date.toISOString().split('T')[0];
+              const { error: storyError } = await supabase
+                .from('design_stories')
+                .update({ end_date: newEndDate })
+                .eq('id', story.id);
+
+              if (storyError) throw storyError;
+
+              loadTasks();
+            } catch (error) {
+              console.error('[StoryRow] Error resizing story:', error);
+            }
+          }
+        }
+      }
+
+      setIsResizingStory(false);
+      setTempStoryEndIndex(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   const getDrawingOverlay = () => {
     if (!isDrawing || drawStart === null || drawEnd === null) return null;
 
@@ -316,9 +386,13 @@ export const StoryRow = ({
                 isSameDay(day.date, storyStartDate)
               );
               const storyEndDate = parseDate(story.end_date);
-              const storyEndIndex = businessDays.findIndex(day =>
+              let storyEndIndex = businessDays.findIndex(day =>
                 isSameDay(day.date, storyEndDate)
               );
+
+              if (tempStoryEndIndex !== null) {
+                storyEndIndex = tempStoryEndIndex;
+              }
 
               if (storyStartIndex === -1 || storyEndIndex === -1) return null;
 
@@ -326,18 +400,32 @@ export const StoryRow = ({
               const storyWidth = (storyEndIndex - storyStartIndex + 1) * cellWidth;
 
               return (
-                <div
-                  className="absolute border-2 border-dashed pointer-events-none"
-                  style={{
-                    left: `${storyLeft}px`,
-                    width: `${storyWidth}px`,
-                    top: 0,
-                    height: '100%',
-                    borderColor: `${story.color}40`,
-                    backgroundColor: `${story.color}08`,
-                    zIndex: 0
-                  }}
-                />
+                <>
+                  <div
+                    className="absolute border border-gray-300"
+                    style={{
+                      left: `${storyLeft}px`,
+                      width: `${storyWidth}px`,
+                      top: 0,
+                      height: '100%',
+                      backgroundColor: `${story.color}15`,
+                      zIndex: 0,
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  <div
+                    className="absolute top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-500 hover:opacity-50 transition-opacity group"
+                    style={{
+                      left: `${storyLeft + storyWidth - 4}px`,
+                      zIndex: 50,
+                      pointerEvents: 'auto'
+                    }}
+                    onMouseDown={(e) => handleStoryResizeStart(e, storyEndIndex)}
+                    title="Arrastar para ajustar o período da história"
+                  >
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 bg-gray-400 group-hover:bg-blue-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </>
               );
             })()}
 
@@ -372,6 +460,30 @@ export const StoryRow = ({
                 />
               );
             })}
+
+            {(() => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const todayIndex = businessDays.findIndex(day => {
+                const checkDate = new Date(day.date);
+                checkDate.setHours(0, 0, 0, 0);
+                return checkDate.getTime() === today.getTime();
+              });
+
+              if (todayIndex === -1) return null;
+
+              return (
+                <div
+                  className="absolute top-0 bottom-0 bg-red-100 pointer-events-none"
+                  style={{
+                    left: `${todayIndex * cellWidth}px`,
+                    width: `${cellWidth}px`,
+                    opacity: 0.4,
+                    zIndex: 100
+                  }}
+                />
+              );
+            })()}
 
             {taskLayout.positions.map((position) => {
               const task = tasks.find(t => t.id === position.taskId);

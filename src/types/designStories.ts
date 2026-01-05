@@ -11,6 +11,9 @@ export interface DesignStory {
   handoff_date: string | null;
   position: number;
   collapsed: boolean;
+  designer_id: string | null;
+  designer_name: string | null;
+  designer_avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }

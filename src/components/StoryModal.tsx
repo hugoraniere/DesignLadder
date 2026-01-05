@@ -88,21 +88,21 @@ export const StoryModal = ({ story, projectStartDate, onSave, onClose }: StoryMo
         onClick={onClose}
       />
 
-      <div className="fixed inset-0 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div className="bg-white w-full max-w-3xl border-4 border-black my-8">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">
-                {story ? 'Editar História' : 'Nova História de Design'}
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+      <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
+        <div className="bg-white w-full max-w-3xl border-4 border-black flex flex-col max-h-[90vh]">
+          <div className="flex items-center justify-between p-4 border-b-2 border-gray-200 flex-shrink-0">
+            <h2 className="text-xl font-bold">
+              {story ? 'Editar História' : 'Nova História de Design'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
+          <div className="overflow-y-auto flex-1 p-6">
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-bold mb-2">
@@ -223,21 +223,21 @@ export const StoryModal = ({ story, projectStartDate, onSave, onClose }: StoryMo
                 </p>
               </div>
             </div>
+          </div>
 
-            <div className="mt-8 pt-6 border-t-2 border-gray-200 flex gap-4">
-              <button
-                onClick={handleSave}
-                className="flex-1 bg-black text-white py-4 px-6 font-bold hover:bg-gray-800 transition-colors"
-              >
-                {story ? 'Salvar alterações' : 'Criar história'}
-              </button>
-              <button
-                onClick={onClose}
-                className="px-8 py-4 border-2 border-black font-bold hover:bg-gray-100 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
+          <div className="p-4 border-t-2 border-gray-200 flex gap-3 flex-shrink-0 bg-white">
+            <button
+              onClick={handleSave}
+              className="flex-1 bg-black text-white py-3 px-6 font-medium hover:bg-gray-800 transition-colors"
+            >
+              {story ? 'Salvar alterações' : 'Criar história'}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-8 py-3 border-2 border-black font-medium hover:bg-gray-100 transition-colors"
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       </div>

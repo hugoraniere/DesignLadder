@@ -263,7 +263,7 @@ export const StoryRow = ({
 
       <div
         ref={timelineRef}
-        className={`flex-1 relative h-16 ${!story.collapsed ? 'cursor-crosshair' : ''}`}
+        className={`flex-1 relative h-20 ${!story.collapsed ? 'cursor-crosshair' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -284,6 +284,8 @@ export const StoryRow = ({
                 />
               ))}
             </div>
+
+            <div className="absolute top-[24px] left-0 right-0 border-t border-gray-300" />
 
             {story.phases.map((phase, index) => {
               const phaseStartDate = getPhaseStartDate(index);
@@ -315,7 +317,7 @@ export const StoryRow = ({
               return (
                 <div
                   key={task.id}
-                  className={`absolute top-[18px] bottom-[18px] ${bgColor} ${hoverColor} text-white px-2 py-1 cursor-pointer border border-white flex items-center transition-colors z-20`}
+                  className={`absolute top-[28px] bottom-[4px] ${bgColor} ${hoverColor} text-white px-2 py-1 cursor-pointer border border-white flex items-center transition-colors z-10`}
                   style={{
                     left: `${position.left}px`,
                     width: `${position.width}px`,
@@ -333,7 +335,7 @@ export const StoryRow = ({
 
             {drawingOverlay && (
               <div
-                className="absolute top-[18px] bottom-[18px] bg-gray-400 opacity-50 border-2 border-dashed border-gray-600 pointer-events-none z-10"
+                className="absolute top-[28px] bottom-[4px] bg-gray-400 opacity-50 border-2 border-dashed border-gray-600 pointer-events-none z-15"
                 style={{
                   left: `${drawingOverlay.left}px`,
                   width: `${drawingOverlay.width}px`,

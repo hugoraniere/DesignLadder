@@ -142,8 +142,8 @@ export const StoryTaskModal = ({
             </button>
           </div>
 
-          <div className="overflow-y-auto flex-1 p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
               <div>
                 <label className="block text-sm font-bold mb-2">
                   Nome da tarefa <span className="text-red-600">*</span>
@@ -284,44 +284,37 @@ export const StoryTaskModal = ({
                   disabled={saving}
                 />
               </div>
-            </form>
-          </div>
+            </div>
 
-          <div className="p-4 border-t-2 border-gray-200 flex gap-3 flex-shrink-0 bg-white">
-            {task && onDelete && (
+            <div className="p-4 border-t-2 border-gray-200 flex gap-3 flex-shrink-0 bg-white">
+              {task && onDelete && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="px-4 py-3 border-2 border-red-600 text-red-600 font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  Excluir
+                </button>
+              )}
+              <div className="flex-1" />
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={onClose}
                 disabled={saving}
-                className="px-4 py-3 border-2 border-red-600 text-red-600 font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
+                className="px-6 py-3 border-2 border-black font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
               >
-                Excluir
+                Cancelar
               </button>
-            )}
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="px-6 py-3 border-2 border-black font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                const form = (e.currentTarget as HTMLButtonElement).closest('form');
-                if (form) {
-                  const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                  form.dispatchEvent(submitEvent);
-                }
-              }}
-              disabled={saving}
-              className="px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </>
